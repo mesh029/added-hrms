@@ -1,0 +1,78 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                      Int        @id @default(autoincrement())
+  name                    String
+  phone                   String?
+  title                   String?
+  facility                String?
+  location                String?
+  email                   String     @unique
+  password                String
+  role                    String
+  department              String
+  pay                     Int?
+  hireDate                DateTime  @default(now())
+  endDate                 DateTime?  // Optional
+  reportsTo               String?       // Assuming it references another User
+  weight                  String?    // Optional
+  height                  String?    // Optional
+  address                 String    @default("Null")
+  manager                 String?    // Optional
+  passwordResetToken      String?    // Token used for password resets
+  leaveDays               Int?
+  passwordResetTokenExpiry DateTime? // Expiry date for the reset token
+  createdAt               DateTime   @default(now()) // Auto-generated field
+  updatedAt               DateTime   @default(now()) @updatedAt      // Auto-updated field
+  
+  // Relationships
+  leaves      Leave[]
+  timesheets  Timesheet[]
+  
+
+}
+
+
+model Leave {
+  id         Int      @id @default(autoincrement())
+  startDate  DateTime
+  endDate    DateTime
+  status     String
+  user       User     @relation(fields: [userId], references: [id])
+  userId     Int
+  reason     String
+}
+
+model Timesheet {
+  id        Int      @id @default(autoincrement()) // Unique timesheet ID
+  userId    Int      // User this timesheet belongs to
+  user      User     @relation(fields: [userId], references: [id])
+  approvers    Json ?
+  entries   TimesheetEntry[]  // Array of entries related to this timesheet (one per day)
+  month     Int      // The month of the timesheet (e.g., 1 = January, 2 = February, etc.)
+  year      Int      // The year of the timesheet
+  status    String   // Status of the timesheet (Draft, Ready, etc.)
+}
+
+model TimesheetEntry {
+  id          Int      @id @default(autoincrement()) // Unique entry ID
+  timesheetId Int      // Foreign key to the Timesheet
+  timesheet   Timesheet @relation(fields: [timesheetId], references: [id])
+  date        DateTime  // The specific date for this entry
+  hours       Float     // Hours worked on this specific day
+  type        String    // Type of time entry (e.g., 'Regular', 'Holiday', 'Other')
+  description String    // Description for this time entry (optional)
+}
