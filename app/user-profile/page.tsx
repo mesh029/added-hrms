@@ -105,6 +105,7 @@ export default function UserProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const router = useRouter()
+
   const [searchParams, setSearchParams] = useState<URLSearchParams | null>(null);  const [token, setToken] = useState<string | null>(null);  const { toast } = useToast()
 
   const locations = [
@@ -117,6 +118,7 @@ export default function UserProfilePage() {
     "Vihiga",
   ];
   
+  type Role = "INCHARGE" | "PADM" | "PO" | "STAFF" | "HR";
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -128,7 +130,7 @@ export default function UserProfilePage() {
       department: "",
       address: "",
       hireDate: new Date(),
-      reportsTo: "",
+      reportsTo: "PATH",
       manager: "",
       weight: "",
       height: "",
@@ -139,6 +141,8 @@ export default function UserProfilePage() {
       pay: 5000
     },
   })
+  const [selectedRole, setSelectedRole] = useState<Role | "">("");
+
   const { register, handleSubmit, formState, setValue } = form; // Destructure necessary methods from form
   const { errors } = formState;
   useEffect(() => {
@@ -169,6 +173,8 @@ export default function UserProfilePage() {
       if (!response.ok) throw new Error("Failed to fetch user data")
       const userData = await response.json()
       form.reset(userData)
+         // Explicitly update selectedRole to match the reset value
+         setSelectedRole(userData.role as Role);
     } catch (error) {
       console.error("Error fetching user data:", error)
       toast({
@@ -208,7 +214,7 @@ export default function UserProfilePage() {
 
         // Filter users with roles 'admin' or 'approver'
         const filteredManagers = allUsers.filter((user: any) =>
-          ["admin", "approver"].includes(user.role.toLowerCase())
+          ["admin", "approver", "incharge"].includes(user.role.toLowerCase())
         );
 
         setManagers(filteredManagers);
@@ -329,6 +335,13 @@ export default function UserProfilePage() {
   }
 
 
+
+  const handleRoleChange = (role: Role) => {
+    setSelectedRole(role);
+    form.setValue("role", role); // Update the form state
+  };
+  
+
   return (
     <Suspense fallback={<div>Loading user profile...</div>}>
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -426,19 +439,35 @@ export default function UserProfilePage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="title">Title</Label>
-                  <div className="relative">
-                    <LampDesk className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="name"
-                      placeholder="Brian Odhiambo"
-                      className="pl-8 border-blue-300 focus:border-blue-500"
-                      {...form.register("title")}
-                      disabled={!isEditMode}
-                    />
-                  </div>
-                  {form.formState.errors.title && (
-                    <p className="text-sm text-red-500">{form.formState.errors.title.message}</p>
-                  )}
+                  <Controller
+                    name="title"
+                    control={form.control}
+                    defaultValue={form.getValues("title") || ""}
+                    render={({ field, fieldState: { error } }) => (
+                      <>
+                      <Select
+ onValueChange={(value) => {
+  field.onChange(value); // Update the form's state
+}}                        value={field.value || ""} // Controlled component value
+                        disabled={!isEditMode}
+                      >
+                        <SelectTrigger className={`border-blue-300 focus:border-blue-500 ${error ? "border-red-500" : ""}`}>
+                          <SelectValue placeholder="Select Title" />
+                        </SelectTrigger>
+                        <SelectContent>
+                        <SelectItem value="Health Worker">Health Worker</SelectItem>
+                          <SelectItem value="PADM">HR</SelectItem>
+                          <SelectItem value="PO">Facility Incharge</SelectItem>
+                          <SelectItem value="STAFF">Volunteer</SelectItem>
+                          <SelectItem value="HR">Program Officer M&E</SelectItem>
+
+                        </SelectContent>
+                      </Select>
+                    </>
+                    )}
+                  />
+                  {form.formState.errors.title && <p className="text-sm text-red-500">{form.formState.errors.title.message}</p>
+                  }
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
@@ -514,19 +543,21 @@ export default function UserProfilePage() {
                     render={({ field, fieldState: { error } }) => (
                       <>
                       <Select
-                        onValueChange={field.onChange}
-                        value={field.value || ""} // Controlled component value
+ onValueChange={(value) => {
+  field.onChange(value); // Update the form's state
+  handleRoleChange(value as Role); // Update the local state
+}}                        value={field.value || ""} // Controlled component value
                         disabled={!isEditMode}
                       >
                         <SelectTrigger className={`border-blue-300 focus:border-blue-500 ${error ? "border-red-500" : ""}`}>
                           <SelectValue placeholder="Select role" />
                         </SelectTrigger>
                         <SelectContent>
-                        <SelectItem value="incharge">Facility Incharge</SelectItem>
-                          <SelectItem value="padm">PADM</SelectItem>
-                          <SelectItem value="po">PO</SelectItem>
-                          <SelectItem value="staff">staff</SelectItem>
-                          <SelectItem value="hr">HR</SelectItem>
+                        <SelectItem value="INCHARGE">INCHARGE</SelectItem>
+                          <SelectItem value="PADM">PADM</SelectItem>
+                          <SelectItem value="PO">PO</SelectItem>
+                          <SelectItem value="STAFF">STAFF</SelectItem>
+                          <SelectItem value="HR">HR</SelectItem>
 
 
                         </SelectContent>
@@ -565,134 +596,199 @@ export default function UserProfilePage() {
   />
 </div>
               </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Hire Date</Label>
-                  <Controller
-                    name="hireDate"
-                    control={form.control}
-                    render={({ field }) => (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                            disabled={!isEditMode}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <CalendarComponent
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            disabled={(date) =>
-                              date > new Date() || date < new Date("1900-01-01")
-                            }
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    )}
-                  />
-                  {form.formState.errors.hireDate && (
-                    <p className="text-sm text-red-500">{form.formState.errors.hireDate.message}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label>End Date</Label>
-                  <Controller
-                    name="endDate"
-                    control={form.control}
-                    render={({ field }) => (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                            disabled={!isEditMode}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <CalendarComponent
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            disabled={(date) =>
-                              date < new Date(form.getValues("hireDate"))
-                            }
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    )}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-  <Label htmlFor="facility">Facility</Label>
-  <div className="relative">
-    <Hospital className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-    <Input
-      id="facility"
-      placeholder="Saint John"
-      className="pl-8 border-blue-300 focus:border-blue-500"
-      {...form.register("facility")}
-      disabled={!isEditMode}
-    />
-  </div>
-
-</div>
 
 
-<div className="space-y-2">
-        <Label htmlFor="location">Location</Label>
-          <Map className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-
-        <div className="relative">
+{/* Conditional inputs */}
+{["INCHARGE", "STAFF", "HR", "PO"].includes(selectedRole) && (
+      <div className="space-y-2">
+      <Label htmlFor="location">Location</Label>
         <Map className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
 
+      <div className="relative">
+      <Map className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+
 <Controller
-  control={form.control}
-  name="location"
-  rules={{ required: "Please select a location" }}
-  defaultValue={form.getValues("location") || ""} // Set the default value from the database or any fallback
-  render={({ field }) => (
-    <select
-      id="location"
-      className="pl-8 border-blue-300 focus:border-blue-500 w-full"
-      {...field}
-    >
-      <option value="" disabled>
-        Select a location
+control={form.control}
+name="location"
+rules={{ required: "Please select a location" }}
+defaultValue={form.getValues("location") || ""} // Set the default value from the database or any fallback
+render={({ field }) => (
+  <select
+    id="location"
+    className="pl-8 border-blue-300 focus:border-blue-500 w-full"
+    {...field}
+    disabled={!isEditMode}
+  >
+    <option value="" disabled>
+      Select a location
+    </option>
+    {locations.map((location, index) => (
+      <option key={index} value={location}>
+        {location}
       </option>
-      {locations.map((location, index) => (
-        <option key={index} value={location}>
-          {location}
-        </option>
-      ))}
-    </select>
-  )}
+    ))}
+  </select>
+)}
 />
 
 
-        </div>
-        {errors.location && (
-          <p className="text-red-500">{errors.location.message}</p>
-        )}
       </div>
+      {errors.location && (
+        <p className="text-red-500">{errors.location.message}</p>
+      )}
+    </div>
+      )}
+
+      {["INCHARGE", "STAFF"].includes(selectedRole) && (
+                    <div className="space-y-2">
+                    <Label htmlFor="facility">Facility</Label>
+                    <div className="relative">
+                      <Hospital className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="facility"
+                        placeholder="Saint John"
+                        className="pl-8 border-blue-300 focus:border-blue-500"
+                        {...form.register("facility")}
+                        disabled={!isEditMode}
+                      />
+                    </div>
+                  
+                  </div>
+      )}
+      {["STAFF"].includes(selectedRole) && (
+        <>
+                                  <div className="space-y-2">
+   
+                                  <label htmlFor="reportsTo">Reports To</label>
+                                        {loading ? (
+                                          <p>Loading...</p>
+                                        ) : (
+                                          <Controller
+                                            control={form.control} // Bind the Controller to the form control
+                                            name="reportsTo" // Specify the name of the field in the form
+                                            rules={{ required: "Please select a manager" }} // Optional validation
+                                            defaultValue={form.getValues("reportsTo") || ""}
+                                            render={({ field }) => (
+                                              <select
+                                                id="manager"
+                                                className="pl-8 border-blue-300 focus:border-blue-500 w-full"
+                                                {...field} // Spread the field props to connect it with react-hook-form
+                                                disabled={!isEditMode}
+                                              >
+                                                <option value="" disabled>
+                                                  Select a manager
+                                                </option>
+                                                {managers.map((manager: any) => (
+                                                  <option key={manager.id} value={manager.name}>
+                                                    {manager.name}
+                                                  </option>
+                                                ))}
+                                              </select>
+                                            )}
+                                          />
+                                        )}
+                                                       {form.formState.errors.reportsTo && (
+                                                      <p className="text-sm text-red-500">{form.formState.errors.reportsTo.message}</p>
+                                                    )}
+                                  
+                                                  </div>
+
+
+
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div className="space-y-2">
+  <Label>Hire Date</Label>
+  <Controller
+    name="hireDate"
+    control={form.control}
+    render={({ field }) => (
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            variant={"outline"}
+            className={cn(
+              "w-full justify-start text-left font-normal",
+              !field.value && "text-muted-foreground"
+            )}
+            disabled={!isEditMode}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <CalendarComponent
+            mode="single"
+            selected={field.value}
+            onSelect={field.onChange}
+            disabled={(date) =>
+              date > new Date() || date < new Date("1900-01-01")
+            }
+            initialFocus
+          />
+        </PopoverContent>
+      </Popover>
+    )}
+  />
+  {form.formState.errors.hireDate && (
+    <p className="text-sm text-red-500">{form.formState.errors.hireDate.message}</p>
+  )}
+</div>
+<div className="space-y-2">
+  <Label>End Date</Label>
+  <Controller
+    name="endDate"
+    control={form.control}
+    render={({ field }) => (
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            variant={"outline"}
+            className={cn(
+              "w-full justify-start text-left font-normal",
+              !field.value && "text-muted-foreground"
+            )}
+            disabled={!isEditMode}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <CalendarComponent
+            mode="single"
+            selected={field.value}
+            onSelect={field.onChange}
+            disabled={(date) =>
+              date < new Date(form.getValues("hireDate"))
+            }
+            initialFocus
+          />
+        </PopoverContent>
+      </Popover>
+    )}
+  />
+</div>
+<div className="space-y-2">
+                <Label htmlFor="leaveDays">Leave Days</Label>
+                <Input
+                  id="leaveDays"
+                  type="number"
+                  placeholder="20"
+                  className="border-blue-300 focus:border-blue-500"
+                  {...form.register("leaveDays", { valueAsNumber: true })}
+                  disabled={!isEditMode}
+                />
+                {form.formState.errors.leaveDays && (
+                  <p className="text-sm text-red-500">{form.formState.errors.leaveDays.message}</p>
+                )}
+              </div>
+</div>
+</>
+      )}
+
               <div className="space-y-2">
   <Label htmlFor="phoneNumber">Phone Number</Label>
   <div className="relative">
@@ -707,56 +803,11 @@ export default function UserProfilePage() {
   </div>
 </div>
 
-                <div className="space-y-2">
-   
-<label htmlFor="reportsTo">Reports To</label>
-      {loading ? (
-        <p>Loading...</p>
-      ) : (
-        <Controller
-          control={form.control} // Bind the Controller to the form control
-          name="reportsTo" // Specify the name of the field in the form
-          rules={{ required: "Please select a manager" }} // Optional validation
-          render={({ field }) => (
-            <select
-              id="manager"
-              className="pl-8 border-blue-300 focus:border-blue-500 w-full"
-              {...field} // Spread the field props to connect it with react-hook-form
-            >
-              <option value="" disabled>
-                Select a manager
-              </option>
-              {managers.map((manager: any) => (
-                <option key={manager.id} value={manager.name}>
-                  {manager.name}
-                </option>
-              ))}
-            </select>
-          )}
-        />
-      )}
-                     {form.formState.errors.reportsTo && (
-                    <p className="text-sm text-red-500">{form.formState.errors.reportsTo.message}</p>
-                  )}
 
-                </div>
                 <div className="space-y-2">
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="leaveDays">Leave Days</Label>
-                <Input
-                  id="leaveDays"
-                  type="number"
-                  placeholder="20"
-                  className="border-blue-300 focus:border-blue-500"
-                  {...form.register("leaveDays", { valueAsNumber: true })}
-                  disabled={!isEditMode}
-                />
-                {form.formState.errors.leaveDays && (
-                  <p className="text-sm text-red-500">{form.formState.errors.leaveDays.message}</p>
-                )}
-              </div>
+
             </TabsContent>
             <TabsContent value="documents" className="space-y-4">
               <div className="space-y-4">

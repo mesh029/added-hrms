@@ -11,7 +11,7 @@ const prisma = new PrismaClient();
 
 // Create a new user
 export const createUser = async (req, res) => {
-    const { name, email, password, role, department, address, hireDate, endDate, reportsTo, manager, weight, height, leaveDays, phone, facility, pay, title } = req.body;
+    const { name, email, password, role, department, address, hireDate, endDate, reportsTo, manager, weight, height, leaveDays, phone, facility, pay, title, location } = req.body;
 
     // Generate a default password for the new user
 const generateDefaultPassword = () => {
@@ -29,6 +29,7 @@ try {
     const newUser = await prisma.user.create({
         data: {
             name,
+            location,
             email,
             password: hashedPassword,
             role,
@@ -46,7 +47,8 @@ try {
             // Set password reset fields to null at creation
             passwordResetToken: null,
             passwordResetTokenExpiry: null,
-            pay
+            pay,
+            title
         },
     });
 
@@ -256,6 +258,28 @@ export const getTimesheetsByUser = async (req, res) => {
         res.status(500).json({ error: 'Error fetching timesheets' });
     }
 };
+
+export const getTimesheetForApprovers = async (req, res) => {
+    const { userId } = req.body;
+
+    const approver = await prisma.user.findUnique({ where: { id: parseInt(userId) } });
+  
+    let timesheets;
+    if (approver.role === 'INCHARGE') {
+      timesheets = await prisma.timesheet.findMany({
+        where: { user: { reportsTo: approver.name } },
+        include: { approvals: true },
+      });
+    } else {
+      timesheets = await prisma.timesheet.findMany({
+        where: { user: { location: approver.location } },
+        include: { approvals: true },
+      });
+    }
+  
+    res.json(timesheets);
+};
+
 
 export const createLeaveRequest = async (req, res) => {
     try {

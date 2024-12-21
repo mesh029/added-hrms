@@ -35,12 +35,15 @@ const TimesheetApprovalComponent: React.FC<TimesheetApprovalProps> = ({ userId, 
       }
   
       try {
-        const response = await fetch(`http://localhost:3030/api/timesheets`, {
+        const response = await fetch(`http://localhost:3030/api/timesheets/approve`, {
           method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
+          body: JSON.stringify({
+            userId
+          }),
         });
   
         if (response.ok) {

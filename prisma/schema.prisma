@@ -13,6 +13,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Approval {
+  id          Int       @id @default(autoincrement())
+  approverId  Int
+  approverRole String    // e.g., "Approver A", "Approver B"
+  approverName String
+  signature   String?    // Approver's signature (URL or base64)
+  timesheetId Int?
+  leaveRequestId Int?
+  status      String     @default("Pending") // Approval status
+  timestamp   DateTime   @default(now())
+
+  approver    User       @relation(fields: [approverId], references: [id])
+  timesheet   Timesheet? @relation(fields: [timesheetId], references: [id])
+  leaveRequest Leave? @relation(fields: [leaveRequestId], references: [id])
+}
+
 model User {
   id                      Int        @id @default(autoincrement())
   name                    String
@@ -37,8 +53,10 @@ model User {
   passwordResetTokenExpiry DateTime? // Expiry date for the reset token
   createdAt               DateTime   @default(now()) // Auto-generated field
   updatedAt               DateTime   @default(now()) @updatedAt      // Auto-updated field
+  signature               String?
   
   // Relationships
+  approvals   Approval[]
   leaves      Leave[]
   timesheets  Timesheet[]
   
@@ -54,6 +72,8 @@ model Leave {
   user       User     @relation(fields: [userId], references: [id])
   userId     Int
   reason     String
+
+  approvals  Approval[]
 }
 
 model Timesheet {
@@ -65,6 +85,8 @@ model Timesheet {
   month     Int      // The month of the timesheet (e.g., 1 = January, 2 = February, etc.)
   year      Int      // The year of the timesheet
   status    String   // Status of the timesheet (Draft, Ready, etc.)
+
+  approvals  Approval[]
 }
 
 model TimesheetEntry {

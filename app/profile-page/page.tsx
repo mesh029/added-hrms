@@ -205,7 +205,7 @@ const filteredUsers2 = allUsers.filter((user) => {
     ? user.location === selectedLocation
     : true;
   const matchesManager =
-    userMain?.role === "Admin" || user.reportsTo === userMain?.name;
+    userMain?.role === "admin" || user.reportsTo === userMain?.name;
 
   return matchesSearch && matchesRole && matchesLocation && matchesManager;
 });

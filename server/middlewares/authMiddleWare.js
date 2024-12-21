@@ -20,7 +20,7 @@ export const adminMiddleware = async (req, res, next) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET); // Verify the token
         const user = await prisma.user.findUnique({ where: { id: decoded.id } });
 
-        if (!user || user.role !== 'Admin') {
+        if (!user || user.role !== 'admin') {
             console.log('User not found or not an admin');
             return res.status(403).json({ error: 'Forbidden: Admins only' });
         }
