@@ -260,26 +260,42 @@ export const getTimesheetsByUser = async (req, res) => {
 };
 
 export const getTimesheetForApprovers = async (req, res) => {
-    const { userId } = req.body;
-
-    const approver = await prisma.user.findUnique({ where: { id: parseInt(userId) } });
+    const { userId } = req.query; // Get userId from query parameters
   
-    let timesheets;
-    if (approver.role === 'INCHARGE') {
-      timesheets = await prisma.timesheet.findMany({
-        where: { user: { reportsTo: approver.name } },
-        include: { approvals: true },
-      });
-    } else {
-      timesheets = await prisma.timesheet.findMany({
-        where: { user: { location: approver.location } },
-        include: { approvals: true },
-      });
+    if (!userId) {
+      return res.status(400).json({ error: "Missing userId parameter." });
     }
   
-    res.json(timesheets);
-};
+    try {
+      const approver = await prisma.user.findUnique({ where: { id: parseInt(userId) } });
+  
+      if (!approver) {
+        return res.status(404).json({ error: "Approver not found." });
+      }
+  
+      let timesheets;
+      if (approver.role === "INCHARGE") {
+        timesheets = await prisma.timesheet.findMany({
+          where: { user: { reportsTo: approver.name } },
+          include: { approvals: true },
+        });
+      } else {
+        timesheets = await prisma.timesheet.findMany({
+          where: { user: { location: approver.location } },
+          include: { approvals: true },
+        });
+      }
+  
+      res.json(timesheets);
+    } catch (error) {
+      console.error("Error fetching timesheets:", error);
+      res.status(500).json({ error: "Internal server error." });
+    }
+  };
 
+
+  
+  
 
 export const createLeaveRequest = async (req, res) => {
     try {
@@ -379,70 +395,63 @@ export const getTimesheetEntry= async (req, res) => {
 };
 
 
-// Approve timesheet logic
 export const approveTimesheet = async (req, res) => {
+    const { id: timesheetId } = req.params; // Get timesheet ID from URL parameter
+    const { approverId } = req.query; // Get approver ID from query parameters
+  
+    if (!timesheetId || !approverId) {
+      return res.status(400).json({ error: "Missing timesheetId or approverId parameter." });
+    }
+  
     try {
-      const { id } = req.params; // Get the timesheet ID from the request parameters
-      const { role } = req.query; // Get the approver's role from the query params
-      const { approverName, approverTitle } = req.body; // Get the approver's name and title from the request body
+      // Find the approver details
+      const approver = await prisma.user.findUnique({ where: { id: parseInt(approverId) } });
   
-      // Validate that `id`, `role`, `approverName`, and `approverTitle` are provided
-      if (!id || !role || !approverName || !approverTitle) {
-        return res.status(400).json({ error: "All fields (id, role, approverName, approverTitle) are required." });
+      if (!approver) {
+        return res.status(404).json({ error: "Approver not found." });
       }
   
-      // Fetch the current timesheet from the database
-      const timesheet = await prisma.timesheet.findUnique({
-        where: { id: parseInt(id) },
-      });
-  
-      if (!timesheet) {
-        return res.status(404).json({ error: "Timesheet not found." });
-      }
-  
-      // Ensure approvers array exists and add the new approver
-      const updatedApprovers = [
-        ...(timesheet.approvers || []), // Initialize as empty array if approvers is null
-        { name: approverName, title: approverTitle }
-      ];
-  
-      // Determine the status based on the role
-      let updatedStatus;
-      switch (role) {
-        case 'incharge':
-          updatedStatus = "Approved(FI)";
-          break;
-        case 'hr':
-          updatedStatus = "Approved(HR)";
-          break;
-        case 'po':
-          updatedStatus = "Approved(PO)";
-          break;
-        case 'padm':
-          updatedStatus = "Approved(PADM)";
-          break;
-        default:
-          updatedStatus = "Ready"; // Default status
-          break;
-      }
-  
-      // Update the timesheet with the new approvers and status
-      const updatedTimesheet = await prisma.timesheet.update({
-        where: { id: parseInt(id) },
+      // Add the approval to the database
+      await prisma.approval.create({
         data: {
-          status: updatedStatus,
-          approvers: updatedApprovers, // Updated approvers list
+          timesheetId: parseInt(timesheetId),
+          approverId: parseInt(approverId),
+          approverRole: approver.role,
+          approverName: approver.name,
+          signature: approver.title, // Assumes signature is stored in the user model
+          status: "Approved",
         },
       });
   
-      // Respond with the updated timesheet and success message
-      res.status(200).json({
-        message: `Timesheet approved by ${approverName} (${approverTitle}).`,
-        updatedTimesheet,
+      // Fetch all approvals for the current timesheet
+      const approvals = await prisma.approval.findMany({ where: { timesheetId: parseInt(timesheetId) } });
+  
+      // Construct the approvers data with name, role, and title
+      const approversDetails = approvals.map((approval) => ({
+        name: approval.approverName,
+        role: approval.approverRole,
+        title: approval.signature, // Assuming `approverTitle` is a field in the user model
+      }));
+  
+      // Update the timesheet's approvers details
+      await prisma.timesheet.update({
+        where: { id: parseInt(timesheetId) },
+        data: { approvers: approversDetails },
       });
+  
+      // Construct the new status based on approvals
+      const nextStatus = approvals.map((approval) => `Approved by: ${approval.approverRole}`).join(", ");
+  
+      // Update the timesheet's status
+      await prisma.timesheet.update({
+        where: { id: parseInt(timesheetId) },
+        data: { status: nextStatus },
+      });
+  
+      res.status(200).json({ message: "Timesheet approved successfully." });
     } catch (error) {
       console.error("Error approving timesheet:", error);
-      res.status(500).json({ error: "Failed to approve timesheet." });
+      res.status(500).json({ error: "Internal server error." });
     }
   };
   

@@ -9,7 +9,7 @@ interface Timesheet {
   userId: number;
   month: number;
   year: number;
-  status: "Draft" | "Ready" | "Approved(HR)" | "Approved(FI)"| "Approved(PO)"| "Approved(PADM)";
+  status: "Draft" | "Ready" | "Approved(HR)" | "Approved by: INCHARGE"| "Approved(PO)"| "Approved(PADM)";
   entries: Array<{ day: string; hoursWorked: number }>; // Example format for timesheet entries
 }
 
@@ -35,23 +35,21 @@ const TimesheetApprovalComponent: React.FC<TimesheetApprovalProps> = ({ userId, 
       }
   
       try {
-        const response = await fetch(`http://localhost:3030/api/timesheets/approve`, {
+        const response = await fetch(`http://localhost:3030/api/timesheets/approve?userId=${userId}`, {
           method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            userId
-          }),
         });
   
         if (response.ok) {
           const data = await response.json();
-          if (Array.isArray(data.timeSheets)) {
-            setTimesheets(data.timeSheets); // Correctly assign the timesheets array
+          if (Array.isArray(data)) {
+            setTimesheets(data); // Correctly assign the timesheets array
             setLoading(false)
           } else {
+            console.log(data)
             console.error("Unexpected response structure:", data);
           }
         } else {
@@ -66,65 +64,49 @@ const TimesheetApprovalComponent: React.FC<TimesheetApprovalProps> = ({ userId, 
   }, []);
   
 
-  const handleApprove = async (id: number, role: "incharge" | "hr" | "po" | "padm") => {
+  const handleApprove = async (
+    timesheetId: number,
+    approverId: number,
+  ) => {
     try {
       const token = localStorage.getItem("jwtToken");
-      const approverName = name; // Assuming the name of the approver is stored in localStorage
-      const approverTitle = "Approver Title goes here"; // Function to get the title based on the role
-  
-      if (!approverName || !approverTitle) {
-        console.error("Approver information is missing.");
+      if (!token) {
+        console.error("Authentication token is missing.");
         return;
       }
   
-      // Fetch the current timesheet to get the current list of approvers
-      const response = await fetch(`http://localhost:3030/api/timesheets/${id}`);
-      const timesheet = await response.json();
+      const response = await fetch(
+        `http://localhost:3030/api/timesheets/${timesheetId}/approve?approverId=${approverId}`,  // Send approverId in query params
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (response.ok) {
+        const updatedTimesheet = await response.json();
   
-      if (!timesheet) {
-        console.error("Timesheet not found");
-        return;
-      }
-  
-      // Ensure approvers array exists and add the new approver
-      const updatedApprovers = [...(timesheet.approvers || []), { name: approverName, title: approverTitle }];
-      
-      // Get the status dynamically based on the role
-      const status = getStatusForRole(role);
-  
-      // Update the timesheet with the new approvers and status
-      const updateResponse = await fetch(`http://localhost:3030/api/timesheets/${id}/approve?role=${role}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          approverName: approverName,
-          approverTitle: approverTitle,
-      }),
-      });
-  
-      if (updateResponse.ok) {
-        // Update local state with the new approvers and status
+        // Update the local state with the new status
         setTimesheets((prev) =>
           prev.map((timesheet) =>
-            timesheet.id === id
-              ? {
-                  ...timesheet,
-                  status: status,
-                  approvers: updatedApprovers, // Update the approvers list
-                }
+            timesheet.id === timesheetId
+              ? { ...timesheet, status: updatedTimesheet.status }
               : timesheet
           )
         );
+  
+        console.log("Timesheet approved successfully!");
       } else {
-        console.error("Failed to approve timesheet.");
+        const errorData = await response.json();
+        console.error("Failed to approve timesheet.", approverId);
       }
     } catch (error) {
       console.error("Error approving timesheet:", error);
     }
   };
+  
   
   
   // Function to get the status based on the role
@@ -187,7 +169,7 @@ const TimesheetApprovalComponent: React.FC<TimesheetApprovalProps> = ({ userId, 
 
   const groupedTimesheets = {
     Ready: timesheets.filter((t) => t.status === "Ready"),
-    ApprovedIncharge: timesheets.filter((t) => t.status === "Approved(FI)"),
+    ApprovedIncharge: timesheets.filter((t) => t.status === "Approved by: INCHARGE"),
     ApprovedHR: timesheets.filter((t) => t.status === "Approved(HR)"),
     ApprovedPO: timesheets.filter((t) => t.status === "Approved(PO)"),
     ApprovedPADM: timesheets.filter((t) => t.status === "Approved(PADM)"),
@@ -242,7 +224,7 @@ View Timeesheet
                               {status === "Ready" && (
                                 <>
                                   <Button
-                                    onClick={() => handleApprove(timesheet.id, userRole === "incharge" ? "incharge" : "hr")}
+                                    onClick={() => handleApprove(timesheet.id,userId)}
                                   >
                                     Approve
                                   </Button>

@@ -26,7 +26,8 @@ app.delete('/api/users/:id', deleteUser);
 
 
 app.post('/api/timesheets', submitTimesheet);
-app.patch('/api/timesheets/:id/approve', approveTimesheet);
+app.post('/api/timesheets/:id/approve', approveTimesheet);
+
 app.patch('/api/leaves/:id/approve', approveLeave);
 app.patch('/api/leaves/:id/deny', denyLeave);
 

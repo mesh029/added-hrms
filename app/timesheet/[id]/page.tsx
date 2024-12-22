@@ -9,6 +9,8 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
+import rough from "roughjs";
+
 
 interface TimesheetEntry {
   id: number;
@@ -18,7 +20,12 @@ interface TimesheetEntry {
   type: string;
   description: string;
 }
-
+interface Approver {
+  name: string;
+  role: string;
+  title: string;
+  status: string;
+}
 interface Timesheet {
   id: number;
   userId: number;
@@ -27,6 +34,7 @@ interface Timesheet {
   status: string;
   name: string;
   role: string;
+  approvers: Approver[]; 
 }
 
 const TimesheetPage: React.FC = () => {
@@ -68,7 +76,7 @@ const TimesheetPage: React.FC = () => {
       try {
         const token = localStorage.getItem("jwtToken");
         if (!token) throw new Error("Token is missing. Please log in.");
-
+    
         const response = await fetch(
           `http://localhost:3030/api/timesheet/${timesheetId}`,
           {
@@ -79,10 +87,19 @@ const TimesheetPage: React.FC = () => {
             },
           }
         );
-
+    
         if (!response.ok) throw new Error("Failed to fetch timesheet.");
-
+    
         const data = await response.json();
+    
+        // Log the entire response data to inspect its structure
+        console.log(data);
+    
+        // Check if timesheet data exists and safely access approvers
+        if (!data.timeSheet) {
+          throw new Error("Timesheet data is missing.");
+        }
+    
         setTimesheet({
           id: data.timeSheet.id,
           userId: data.timeSheet.userId,
@@ -91,12 +108,13 @@ const TimesheetPage: React.FC = () => {
           status: data.timeSheet.status,
           name: data.timeSheet.user.name,
           role: data.timeSheet.user.role,
+          approvers: data.timeSheet.approvers || [],  // Default to an empty array if approvers is missing
         });
       } catch (error) {
         console.error("Error fetching timesheet:", error);
       }
     };
-
+    
     const fetchData = async () => {
       await Promise.all([fetchTimesheetEntries(), fetchTimesheet()]);
       setLoading(false);
@@ -105,15 +123,18 @@ const TimesheetPage: React.FC = () => {
     fetchData();
   }, [timesheetId]);
 
+  
   const downloadAsPDF = () => {
     if (!timesheet || !timesheetEntries.length) return;
-
+  
     const doc = new jsPDF();
     const title = `Timesheet Report - ID: ${timesheet.id} for ${timesheet.name}`;
     doc.text(title, 10, 10);
-
-    doc.autoTable({
-      startY: 20,
+  
+    // Timesheet Table
+    const timesheetTableStartY = 20;
+    const table = doc.autoTable({
+      startY: timesheetTableStartY,
       head: [["Date", "Hours", "Type", "Description"]],
       body: timesheetEntries.map((entry) => [
         new Date(entry.date).toLocaleDateString(),
@@ -122,9 +143,61 @@ const TimesheetPage: React.FC = () => {
         entry.description || "N/A",
       ]),
     });
-
+  
+    // Get the end of the table
+    const rowHeight = 10; // Approximate height of each row
+    const tableRowCount = timesheetEntries.length;
+    const timesheetTableEndY = timesheetTableStartY + (tableRowCount * rowHeight) + 10;
+  
+    // Add Approvers Section below the table
+    const approversY = timesheetTableEndY;
+    doc.setFontSize(8); // Reduce font size for the approvers section
+    doc.text('Approvers:', 10, approversY);
+  
+    let approversYPosition = approversY + 5;
+  
+    // Define column width for each approver
+    const columnWidth = (doc.internal.pageSize.width - 20) / 4;
+  
+    // Temporary canvas for Rough.js signatures
+    const canvas = document.createElement("canvas");
+    canvas.width = 100;
+    canvas.height = 30; // Reduced height for smaller signatures
+  
+    // Add approvers with simulated signatures
+    timesheet.approvers.slice(0, 4).forEach((approver, index) => {
+      const columnX = 10 + columnWidth * index;
+  
+      doc.text(`Approver ${index + 1}:`, columnX, approversYPosition);
+      doc.text(`Name: ${approver.name}`, columnX, approversYPosition + 5);
+      doc.text(`Role: ${approver.role}`, columnX, approversYPosition + 10);
+      doc.text(`Title: ${approver.title}`, columnX, approversYPosition + 15);
+  
+      // Add "Signature" label
+      doc.text("Signature:", columnX, approversYPosition + 20);
+  
+      // Use Rough.js to create the hand-drawn signature with the full name
+      const rc = rough.canvas(canvas);
+      rc.rectangle(0, 0, canvas.width, canvas.height, { roughness: 1 }); // Optional boundary
+      const ctx = canvas.getContext("2d");
+  
+      if (ctx) {
+        ctx.font = "18px cursive"; // Smaller font for the signature
+        ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+        ctx.fillText(approver.name, 5, 20); // Render the full name with adjusted position
+      }
+  
+      // Convert the canvas to a base64 image
+      const signatureImage = canvas.toDataURL("image/png");
+  
+      // Add signature image to PDF
+      doc.addImage(signatureImage, "PNG", columnX, approversYPosition + 25, 30, 10); // Reduced image size
+    });
+  
+    // Save the PDF
     doc.save(`Timesheet-${timesheet.id}.pdf`);
   };
+  
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -170,6 +243,23 @@ const TimesheetPage: React.FC = () => {
                 </TableBody>
               </Table>
             </div>
+            <div className="mt-6">
+  <h3 className="text-xl font-semibold">Approvers</h3>
+  {timesheet?.approvers && timesheet.approvers.length > 0 ? (
+    <div className="space-y-4">
+      {timesheet.approvers.map((approver, index) => (
+        <div key={index} className="flex flex-col space-y-2">
+          <p><strong>Name:</strong> {approver.name}</p>
+          <p><strong>Role:</strong> {approver.role}</p>
+          <p><strong>Title:</strong> {approver.title}</p>
+          <p><strong>Status:</strong> {approver.status}</p>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <p>No approvers available.</p>
+  )}
+</div>
             <Button onClick={downloadAsPDF} className="bg-blue-500 text-white">
               Download PDF
             </Button>
