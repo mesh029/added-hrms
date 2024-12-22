@@ -130,7 +130,7 @@ useEffect(() => {
     })
     .then((data) => {
       setUser(data); // Set the fetched user data
-      const isAdmin = ["admin", "approver", "hr", "incharge"].includes(data.role.toLowerCase());
+      const isAdmin = ["admin", "approver", "hr", "incharge", "po", "hr", "padm"].includes(data.role.toLowerCase());
       setIsAdmin(isAdmin); // Set admin status
 
       // If the user is an admin, fetch the list of all users

@@ -135,9 +135,9 @@ export default function UserProfilePage() {
       weight: "",
       height: "",
       leaveDays: 0,
-      location: "",
+      location: "PATH",
       phone: "",
-      facility:"",
+      facility:"PATH",
       pay: 5000
     },
   })

@@ -252,7 +252,6 @@ const TimesheetPage: React.FC = () => {
           <p><strong>Name:</strong> {approver.name}</p>
           <p><strong>Role:</strong> {approver.role}</p>
           <p><strong>Title:</strong> {approver.title}</p>
-          <p><strong>Status:</strong> {approver.status}</p>
         </div>
       ))}
     </div>

@@ -1,12 +1,13 @@
 import express from 'express';
 import { adminMiddleware, authenticateJWT, authenticateToken } from './server/middlewares/authMiddleWare.js';
-import { createUser, getUsers, getUserById, updateUser, deleteUser, login, submitTimesheet,getTimesheetsByUser, createLeaveRequest, getLeaveRequests, getUserLeaves, approveLeave, denyLeave, updateLeaveStatus, getTimesheets, getTimesheetEntry, getTimesheet, approveTimesheet, getTimesheetForApprovers } from './server/controllers/userController.js';
+import { createUser, getUsers, getUserById, updateUser, deleteUser, login, submitTimesheet,getTimesheetsByUser, createLeaveRequest, getLeaveRequests, getUserLeaves, approveLeave, denyLeave, updateLeaveStatus, getTimesheets, getTimesheetEntry, getTimesheet, approveTimesheet, getTimesheetForApprovers, getApprovalFlow } from './server/controllers/userController.js';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import cors from 'cors';
 const app = express();
 const PORT = process.env.PORT || 3030;
 const prisma = new PrismaClient();
+
 
 app.use(cors({ origin: 'http://localhost:3000' }));
 
@@ -39,8 +40,11 @@ app.patch('/api/leaves/:id/:action', updateLeaveStatus);
 app.get('/api/timesheets', getTimesheets);
 app.get('/api/timesheets/approve', getTimesheetForApprovers);
 
+
 app.get('/api/timesheets/:timesheetId', getTimesheetEntry);
 app.get('/api/timesheet/:id', getTimesheet);
+app.get('/api/timesheet/:id/approval-flow', getApprovalFlow);
+
 
 
 
