@@ -8,7 +8,7 @@ import React, { useState, useEffect, useRef } from "react";
 
 
 interface TimesheetEntry {
-  type: "Regular" | "Holiday" | "Sick" | "Annual";
+  type: "Regular" | "Holiday" | "Sick" | "Annual" | "VACA" | "BRV" | "Other";
   hours: string[]; // Keep as string to manage input value directly
   description: string;
 }
@@ -20,7 +20,7 @@ interface TimesheetComponentProps {
 interface ParsedEntry {
   date: string;
   hours: number;
-  type: "Regular" | "Holiday" | "Sick" | "Annual";
+  type:"Regular" | "Holiday" | "Sick" | "Annual" | "VACA" | "BRV" | "Other";
   description: string;
 }
 
@@ -78,6 +78,7 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
       { type: "Regular", hours: Array(daysInMonth).fill("0.0"), description: "" }
     ]);
   };
+  type LeaveType = "Regular" | "Holiday" | "Sick" | "Annual" | "VACA" | "BRV" | "Other";
 
   
   const handleHoursChange = (typeIndex: number, dayIndex: number, value: string) => {
@@ -86,7 +87,7 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
     updatedEntries[typeIndex].hours[dayIndex] = formattedValue; 
     setTimesheetEntries(updatedEntries);
   };
-  const handleAddRow = (type: "Regular" | "Holiday" | "Sick" | "Annual", holidays: string[] = [], leaveDays: string[] = []) => {
+  const handleAddRow = (type: "Regular" | "Holiday" | "Sick" | "Annual"| "VACA" | "BRV" | "Other", holidays: string[] = [], leaveDays: string[] = []) => {
     const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
   
     // Create the new row
@@ -133,7 +134,7 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
     setTimesheetEntries(updatedEntries);
   };
 
-  const handleTypeChange = (typeIndex: number, newType: "Regular" | "Holiday" | "Sick" | "Annual") => {
+  const handleTypeChange = (typeIndex: number, newType: "Regular" | "Holiday" | "Sick" | "Annual"| "VACA" | "BRV" | "Other") => {
     // Check if this day already has the same type of entry
     const hasEntryForDay = timesheetEntries.some(
       (entry) => entry.type === newType && entry.hours.some((hour) => hour !== "0.0")
@@ -273,10 +274,11 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
       );
 
       // Format leave requests to the expected structure
-      const formattedLeaveRequests = approvedLeavesForUser.map((leave: { startDate: string; endDate: string; reason: string }) => ({
+      const formattedLeaveRequests = approvedLeavesForUser.map((leave: { startDate: string; endDate: string; reason: string; leaveType: string }) => ({
         startDate: leave.startDate,
         endDate: leave.endDate,
         reason: leave.reason,
+        leaveType: leave.leaveType,
       }));
 
       // Process leave requests and update the leaveDays state
@@ -284,6 +286,7 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
       formattedLeaveRequests.forEach((leave) => {
         const fromDate = new Date(leave.startDate);
         const toDate = new Date(leave.endDate);
+        
 
         // Generate an array of leave days in the format "YYYY-MM-DD"
         for (let d = fromDate; d <= toDate; d.setDate(d.getDate() + 1)) {
@@ -340,7 +343,7 @@ const addHolidayRow = () => {
   handleAddRow("Holiday", kenyaHolidays);
 };
 
-const addLeaveRow = (leaveRequests: { startDate: string; endDate: string; reason: string }[]) => {
+const addLeaveRow = (leaveRequests: { startDate: string; endDate: string; reason: string; leaveType: string }[]) => {
   leaveRequests.forEach((leave) => {
     const leaveDays: string[] = [];
     const fromDate = new Date(leave.startDate);
@@ -351,8 +354,13 @@ const addLeaveRow = (leaveRequests: { startDate: string; endDate: string; reason
       leaveDays.push(new Date(d).toISOString().split("T")[0]); // Extract date in "YYYY-MM-DD" format
     }
 
+        // Check if leave.type is among the allowed types, otherwise default to "Other"
+        const leaveType: LeaveType = ["Regular", "Holiday", "Sick", "Annual", "VACA", "BRV"].includes(leave.leaveType)
+        ? leave.leaveType as LeaveType
+        : "Other";
+  
     // Use the handleAddRow function to add the leave row
-    handleAddRow("Sick", [], leaveDays); // Pass the sickDays array
+    handleAddRow(leaveType, [], leaveDays); // Pass the sickDays array
 
   });
 };
@@ -404,7 +412,7 @@ const addLeaveRow = (leaveRequests: { startDate: string; endDate: string; reason
             {timesheetEntries.map((entry, typeIndex) => (
               <TableRow key={typeIndex}>
                 <TableCell>
-                  <Select value={entry.type} onValueChange={(value) => handleTypeChange(typeIndex, value as "Regular" | "Holiday" | "Sick" | "Annual")}>
+                  <Select value={entry.type} disabled onValueChange={(value) => handleTypeChange(typeIndex, value as "Regular" | "Holiday" | "Sick" | "Annual"| "VACA" | "BRV")}>
                     <SelectTrigger>
                       <SelectValue>{entry.type} </SelectValue>
                     </SelectTrigger>
@@ -418,7 +426,7 @@ const addLeaveRow = (leaveRequests: { startDate: string; endDate: string; reason
                 </TableCell>
                 {entry.hours.map((hour, dayIndex) => {
   const isHoliday = entry.type === "Holiday";
-  const isLeaveDayy = entry.type === "Sick";
+  const isLeaveDayy = ["Sick", "VACA", "BRV", "Other"].includes(entry.type);
 
   const isWeekendDay = isWeekend(dayIndex); // Assuming you have this utility function
   
@@ -438,7 +446,7 @@ const isLeaveDay = leaveDays.some((leaveDay) => {
 
 
   // Disable input for holidays and weekends for all rows
-  const isHolidayOrWeekend = isHoliday || isWeekendDay || isHolidayDay || isLeaveDayy;
+  const isHolidayOrWeekend = isHoliday || isWeekendDay || isHolidayDay || isLeaveDay || isLeaveDayy;
   
   // Check if the field is empty (if the hour is not filled or is the default placeholder value)
   const isRequired = !hour || hour === "0.0"; // If the hour is not filled or is the default placeholder value
@@ -468,9 +476,8 @@ const isLeaveDay = leaveDays.some((leaveDay) => {
   );
 })}
 
-
                 <TableCell>
-                  <Button variant="outline" onClick={() => handleDeleteRow(typeIndex)}>
+                  <Button variant="outline" disabled onClick={() => handleDeleteRow(typeIndex)}>
                     Delete
                   </Button>
                 </TableCell>

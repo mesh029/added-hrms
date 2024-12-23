@@ -196,7 +196,7 @@ if (entries.length !== weekdaysInMonth) {
         // Iterate through entries and validate individual fields
         for (let i = 0; i < entries.length; i++) {
             const entry = entries[i];
-            if (!entry.type || !['Regular', 'Holiday', 'Other'].includes(entry.type)) {
+            if (!entry.type || !['Regular', 'Holiday',"Sick", 'Other'].includes(entry.type)) {
                 return res.status(400).json({
                     error: `Invalid entry type at index ${i}. Expected one of 'Regular', 'Holiday', or 'Other'.`
                 });
@@ -400,7 +400,7 @@ export const getTimesheetForApprovers = async (req, res) => {
 
 export const createLeaveRequest = async (req, res) => {
     try {
-        const { userId, startDate, endDate, reason } = req.body;
+        const { userId, startDate, endDate, reason, leaveType } = req.body;
 
         // Validate request body
         if (!userId || !startDate || !endDate || !reason) {
@@ -419,6 +419,7 @@ export const createLeaveRequest = async (req, res) => {
                 startDate: new Date(startDate),
                 endDate: new Date(endDate),
                 status: "Pending", // Default status for new requests
+                leaveType,
                 reason,
             },
         });
