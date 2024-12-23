@@ -77,6 +77,7 @@ export default function ProfilePage() {
   const [deleteUser, setDeleteUser] =useState<any>(null);  // Holds the user to delete
   const [refreshKey, setRefreshKey] = useState(0); // A state to trigger refresh
   const [selectedLocation, setSelectedLocation] = useState<any>("");
+  const [isCardVisible, setIsCardVisible] = useState(false); // State to toggle the card visibility
     const [allUsers, setAllUsers] = useState([ { id: 1, name: 'Alice Johnson', role: 'Software Engineer', department: 'Engineering', location:"Kakamega", reportsTo: "Meshack Ariri" },
   ])
   // Fetch user details using the token
@@ -304,11 +305,24 @@ const handleUpdateUser = (updatedUser: User) => {
     <EmployeeProvider>
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Header />
+    
 
       <div className="container mx-auto p-4 sm:p-8" style={{ flex: 1, padding: "20px" }}>
         <h1 className="text-3xl sm:text-4xl font-bold mb-4 sm:mb-8">Hello {userMain.name}!</h1>
-        
+        <button
+              onClick={() => setIsCardVisible(!isCardVisible)}
+              className="w-full sm:w-auto p-2 bg-gray-300 rounded-full shadow-md focus:outline-none"
+            >
+              {/* You can add an icon or text for the menu button */}
+              <span>{isCardVisible ? 'Hide Profile' : 'Show Profile'}</span>
+            </button>
         <div className="grid gap-4 sm:gap-8 md:grid-cols-3">
+       
+        <div
+              className={`transition-all duration-500 ease-in-out transform ${isCardVisible ? 'scale-100' : 'scale-0 absolute top-0 left-0 w-full sm:w-80 p-4 bg-white shadow-lg z-50'}`}
+              style={{ position: isCardVisible ? 'relative' : 'absolute', top: 0, left: 0 }}
+            >
+ 
           <Card className="md:col-span-1">
             <CardHeader>
               <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4">
@@ -380,8 +394,10 @@ const handleUpdateUser = (updatedUser: User) => {
               </Button>
             </CardFooter>
           </Card>
-          
-          <Card className="md:col-span-2">
+          </div>
+          <div
+      className={`transition-all duration-500 ease-in-out ${isCardVisible ? 'md:col-span-2' : 'md:col-span-3 w-full'}`}
+    >        <Card className="mw-full">
             <Tabs defaultValue="personal" className="w-full">
               <CardHeader>
                <TabsList
@@ -537,13 +553,19 @@ const handleUpdateUser = (updatedUser: User) => {
                 
                 <TabsContent value="timesheet">
                 <TimesheetComponent userId={userMain.id} isApprover={isApprover} />
+                <TimesheetApprovalComponent userId={userMain.id} userRole={userMain.role}  name={userMain.name} title={userMain.title} />
+
+
+
 
               </TabsContent>
                         
               <TabsContent value="leave">
                 <LeaveManagementComponent userId={userMain.id} isApprover={isAdmin} />
-                <AdminLeaveManagementComponent userRole={userMain.role} userId={userMain.id} userName={userMain.name} />
-                
+                {isAdmin && (
+                                  <AdminLeaveManagementComponent userRole={userMain.role} userId={userMain.id} userName={userMain.name} />
+
+                )}
               </TabsContent>
               {isAdmin && (
                <TabsContent value="timesheetManagement">
@@ -656,6 +678,7 @@ const handleUpdateUser = (updatedUser: User) => {
               
             </Tabs>
           </Card>
+          </div>
         </div>
       </div>
 

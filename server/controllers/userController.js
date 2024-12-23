@@ -273,7 +273,22 @@ export const getTimesheetForApprovers = async (req, res) => {
         return res.status(404).json({ error: "Approver not found." });
       }
   
-      const approvalOrder = ["INCHARGE", "PO", "HR", "PADM"]; // Define the approval order
+      // If the user is an admin, fetch all timesheets and include user names
+      if (approver.role === "admin") {
+        const timesheets = await prisma.timesheet.findMany({
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        });
+        return res.json(timesheets);
+      }
+  
+      const approvalOrder = ["INCHARGE", "PO", "HR", "PADM", "STAFF"]; // Include STAFF in the approval order
       const approverIndex = approvalOrder.indexOf(approver.role);
   
       if (approverIndex === -1) {
@@ -281,10 +296,32 @@ export const getTimesheetForApprovers = async (req, res) => {
       }
   
       let timesheets;
+  
       if (approver.role === "INCHARGE") {
         // INCHARGE sees all timesheets for their subordinates
         timesheets = await prisma.timesheet.findMany({
           where: { user: { reportsTo: approver.name } },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        });
+      } else if (approver.role === "STAFF") {
+        // STAFF sees only their own timesheets
+        timesheets = await prisma.timesheet.findMany({
+          where: { userId: approver.id }, // Filter by the staff member's userId
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
         });
       } else {
         // Other approvers see timesheets approved by the previous role
@@ -304,6 +341,14 @@ export const getTimesheetForApprovers = async (req, res) => {
         // Fetch timesheets based on approved IDs
         timesheets = await prisma.timesheet.findMany({
           where: { id: { in: approvedTimesheetIds } },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
         });
       }
   
@@ -313,6 +358,8 @@ export const getTimesheetForApprovers = async (req, res) => {
       res.status(500).json({ error: "Internal server error." });
     }
   };
+  
+  
   
   export const getApprovalFlow = async (req, res) => {
     try {
@@ -543,6 +590,45 @@ export const approveTimesheet = async (req, res) => {
     }
   };
   
+  export const rejectTimesheet = async (req, res) => {
+    const { id: timesheetId } = req.params;
+    const { reason } = req.body;
+    const { approverId } = req.query;
+  
+    if (!timesheetId || !reason || !approverId) {
+      return res.status(400).json({ error: "Missing timesheetId, reason, or approverId." });
+    }
+  
+    try {
+      const approver = await prisma.user.findUnique({ where: { id: parseInt(approverId) } });
+  
+      if (!approver) {
+        return res.status(404).json({ error: "Approver not found." });
+      }
+  
+      const timesheet = await prisma.timesheet.findUnique({
+        where: { id: parseInt(timesheetId) },
+      });
+  
+      if (!timesheet) {
+        return res.status(404).json({ error: "Timesheet not found." });
+      }
+  
+      await prisma.timesheet.update({
+        where: { id: parseInt(timesheetId) },
+        data: {
+          status: `Rejected by: ${approver.name} for: [${reason}]`, // Embed approver's name and reason
+        },
+      });
+  
+      res.status(200).json({ message: "Timesheet rejected successfully." });
+    } catch (error) {
+      console.error("Error rejecting timesheet:", error);
+      res.status(500).json({ error: "Internal server error." });
+    }
+  };
+  
+
 
 export const getLeaveRequests = async (req, res) => {
     try {

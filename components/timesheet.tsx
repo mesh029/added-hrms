@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+
 
 interface TimesheetEntry {
   type: "Regular" | "Holiday" | "Sick" | "Annual";
@@ -27,8 +28,12 @@ interface ParsedEntry {
 const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isApprover }) => {
 
   const [holidaysAdded, setHolidaysAdded] = useState(false);
+  const [leavesAdded, setLeavesAdded] = useState(false);
+
+
   const [kenyaHolidays, setKenyaHolidays] = useState<string[]>([]);
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
+  const [leaveDays, setLeaveDays] = useState<string[]>([]); // Initialize state for leaveDays
   const [timesheetEntries, setTimesheetEntries] = useState<TimesheetEntry[]>([
     { type: "Regular", hours: [], description: "" },
   ]);
@@ -81,14 +86,14 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
     updatedEntries[typeIndex].hours[dayIndex] = formattedValue; 
     setTimesheetEntries(updatedEntries);
   };
-  const handleAddRow = (type: "Regular" | "Holiday" | "Sick" | "Annual", holidays: string[] = []) => {
+  const handleAddRow = (type: "Regular" | "Holiday" | "Sick" | "Annual", holidays: string[] = [], leaveDays: string[] = []) => {
     const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
   
     // Create the new row
     const newEntry: TimesheetEntry = {
       type: type,
       hours: Array(daysInMonth).fill("0.0"), // Fill all days with "0.0"
-      description: type === "Holiday" ? `National Holiday` : "",
+      description: type === "Holiday" ? `National Holiday` : (type === "Sick" ? `Sick Leave` : ""),
     };
   
     if (type === "Holiday") {
@@ -104,9 +109,23 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
       });
     }
   
+    if (type === "Sick") {
+      // Fill leave days with predefined values from leaveDays array
+      leaveDays.forEach((leaveDay) => {
+        const leaveDayIndex = parseInt(leaveDay.split("-")[2], 10) - 1; // Convert to zero-based index
+  
+        // Check if the leave day index is valid
+        if (leaveDayIndex >= 0 && leaveDayIndex < newEntry.hours.length) {
+          newEntry.hours[leaveDayIndex] = "8.0"; // Mark sick day with 8.0 hours
+        }
+      });
+    }
+  
     // Add the new row to the timesheet entries
     setTimesheetEntries((prevEntries) => [...prevEntries, newEntry]);
   };
+  
+  
   
 
   const handleDeleteRow = (index: number) => {
@@ -230,6 +249,59 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
     return weekdaysCount;
   }
   
+  const fetchAndAddLeaveRequests = async (currentUserId: number) => {
+    try {
+      // Fetch all leave requests from the API
+      const response = await fetch('http://localhost:3030/api/leaves');
+      if (!response.ok) {
+        throw new Error('Failed to fetch leave requests');
+      }
+
+      const data = await response.json();
+
+      // Extract the leaveRequests array
+      const leaveRequests = data.leaveRequests;
+
+      if (!Array.isArray(leaveRequests)) {
+        throw new Error('leaveRequests is not an array');
+      }
+
+      // Filter leave requests for the current user and approved status
+      const approvedLeavesForUser = leaveRequests.filter(
+        (leave: { userId: number; status: string }) =>
+          leave.userId === currentUserId && leave.status === 'Approved'
+      );
+
+      // Format leave requests to the expected structure
+      const formattedLeaveRequests = approvedLeavesForUser.map((leave: { startDate: string; endDate: string; reason: string }) => ({
+        startDate: leave.startDate,
+        endDate: leave.endDate,
+        reason: leave.reason,
+      }));
+
+      // Process leave requests and update the leaveDays state
+      const leaveDaysArray: string[] = [];
+      formattedLeaveRequests.forEach((leave) => {
+        const fromDate = new Date(leave.startDate);
+        const toDate = new Date(leave.endDate);
+
+        // Generate an array of leave days in the format "YYYY-MM-DD"
+        for (let d = fromDate; d <= toDate; d.setDate(d.getDate() + 1)) {
+          leaveDaysArray.push(new Date(d).toISOString().split("T")[0]); // Add the date to the leaveDaysArray
+        }
+      });
+
+      // Set the leaveDays state
+      setLeaveDays(leaveDaysArray);
+
+      // Call addLeaveRow to add rows for each approved leave request
+      addLeaveRow(formattedLeaveRequests);
+    } catch (error) {
+      console.error('Error fetching or adding leave requests:', error);
+    }
+  };
+
+  
   
   
 
@@ -267,12 +339,39 @@ const addHolidayRow = () => {
   // Use the handleAddRow function to add a holiday row
   handleAddRow("Holiday", kenyaHolidays);
 };
+
+const addLeaveRow = (leaveRequests: { startDate: string; endDate: string; reason: string }[]) => {
+  leaveRequests.forEach((leave) => {
+    const leaveDays: string[] = [];
+    const fromDate = new Date(leave.startDate);
+    const toDate = new Date(leave.endDate);
+
+    // Generate an array of leave days in the format "YYYY-MM-DD"
+    for (let d = fromDate; d <= toDate; d.setDate(d.getDate() + 1)) {
+      leaveDays.push(new Date(d).toISOString().split("T")[0]); // Extract date in "YYYY-MM-DD" format
+    }
+
+    // Use the handleAddRow function to add the leave row
+    handleAddRow("Sick", [], leaveDays); // Pass the sickDays array
+
+  });
+};
+
+
+
   useEffect(() => {
     if (!holidaysAdded) {
       addHolidayRow(); // Add the holiday rows once
       setHolidaysAdded(true); // Mark as added to prevent future additions
     }
   }, [timesheetEntries, holidaysAdded]); // Ensure it only runs when necessary
+  const leavesAddedRef = useRef(false);
+  useEffect(() => {
+    if (!leavesAddedRef.current) {
+      fetchAndAddLeaveRequests(userId); // Add the holiday rows once
+      leavesAddedRef.current = true; // Set ref to true so it doesn't run again
+    }
+  }, []);
   
   return (
     <div className="space-y-4">
@@ -319,6 +418,8 @@ const addHolidayRow = () => {
                 </TableCell>
                 {entry.hours.map((hour, dayIndex) => {
   const isHoliday = entry.type === "Holiday";
+  const isLeaveDayy = entry.type === "Sick";
+
   const isWeekendDay = isWeekend(dayIndex); // Assuming you have this utility function
   
   // Check if the current day is a holiday
@@ -327,14 +428,23 @@ const addHolidayRow = () => {
     return holidayDay - 1 === dayIndex; // Check if this is the current holiday
   });
 
+  // Check if the current day is a leave day
+const isLeaveDay = leaveDays.some((leaveDay) => {
+  const leaveDayDate = new Date(leaveDay); // Convert leave day string to a Date object
+  const leaveDayIndex = leaveDayDate.getDate() - 1; // Get zero-based day index
+  
+  return leaveDayIndex === dayIndex; // Check if this is the current leave day
+});
+
+
   // Disable input for holidays and weekends for all rows
-  const isHolidayOrWeekend = isHoliday || isWeekendDay || isHolidayDay;
+  const isHolidayOrWeekend = isHoliday || isWeekendDay || isHolidayDay || isLeaveDayy;
   
   // Check if the field is empty (if the hour is not filled or is the default placeholder value)
   const isRequired = !hour || hour === "0.0"; // If the hour is not filled or is the default placeholder value
   
   // Should highlight empty fields in red except for holiday days
-  const shouldHighlight = !isHolidayDay && !isHolidayOrWeekend && isRequired;
+  const shouldHighlight = !isHolidayDay && !isHolidayOrWeekend  && !isLeaveDay && isRequired;
 
   return (
     <TableCell key={dayIndex}>
@@ -346,7 +456,7 @@ const addHolidayRow = () => {
         className="w-16 h-8 text-sm text-center"
         disabled={isHolidayOrWeekend} // Disable input for holidays and weekends
         style={{
-          backgroundColor: isHolidayDay
+          backgroundColor: isHolidayDay || isLeaveDay
             ? "#ffeb3b"  // Yellow background for holidays
             : isWeekendDay
             ? "lightgrey"  // Light grey for weekends
@@ -375,7 +485,6 @@ const addHolidayRow = () => {
       </div>
 
       <div className="flex justify-between">
-        <Button variant="outline" onClick={handleAddRow}>Add Time Code</Button>
         <Button variant="outline" onClick={handleSubmit}>Submit Timesheet</Button>
       </div>
     </div>
