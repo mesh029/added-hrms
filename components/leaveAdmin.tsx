@@ -107,16 +107,19 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
     setIsConfirmOpen(true);
   };
 
-  const confirmApproval = async (action: 'approve' | 'denied') => {
+  const confirmApproval = async (action: 'approve' | 'deny', userId: number) => {
     try {
-      const response = await fetch(`http://localhost:3030/api/leaves/${selectedLeaveId}/${action}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("jwtToken")}`,
-        },
-      });
-
+      const response = await fetch(
+        `http://localhost:3030/api/leaves/${selectedLeaveId}/${action}?approverId=${userId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("jwtToken")}`,
+          },
+        }
+      );
+  
       if (response.ok) {
         setLeaveRequests((prev) =>
           prev.map((request) =>
@@ -126,14 +129,15 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
           )
         );
       } else {
-        console.log(`Failed to ${action} leave request.`, response);
+        console.error(`Failed to ${action} leave request.`, await response.json());
       }
       setIsConfirmOpen(false);
     } catch (error) {
-      console.log("Error updating leave request:", error);
+      console.error("Error updating leave request:", error);
       setIsConfirmOpen(false);
     }
   };
+  
 
   const formatDate = (date: string) => {
     return new Intl.DateTimeFormat("en-US", {
@@ -321,10 +325,10 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
           <Dialog.Title className="text-xl font-bold mb-4">Confirm Action</Dialog.Title>
           <p>Are you sure you want to approve/reject this leave request?</p>
           <div className="flex justify-end gap-2 mt-4">
-            <Button onClick={() => confirmApproval("approve")} className="bg-green-500">
+            <Button onClick={() => confirmApproval("approve", userId)} className="bg-green-500">
               Yes, Approve
             </Button>
-            <Button onClick={() => confirmApproval("denied")} className="bg-red-500">
+            <Button onClick={() => confirmApproval("deny", userId)} className="bg-red-500">
               Yes, Reject
             </Button>
             <Button onClick={() => setIsConfirmOpen(false)} className="bg-gray-500">

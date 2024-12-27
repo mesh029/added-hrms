@@ -646,27 +646,96 @@ export const getLeaveRequests = async (req, res) => {
 };
 
 export const approveLeave = async (req, res) => {
-    try {
-        const { id } = req.params;
+    const { id: leaveId } = req.params; // Get leave ID from URL parameter
+    const { approverId } = req.query; // Get approver ID from query parameters
 
-        // Validate that `id` exists
-        if (!id) {
-            return res.status(400).json({ error: "Leave ID is required." });
+    if (!leaveId || !approverId) {
+        return res.status(400).json({ error: "Missing leaveId or approverId parameter." });
+    }
+
+    try {
+        // Find the approver details
+        const approver = await prisma.user.findUnique({ where: { id: parseInt(approverId) } });
+
+        if (!approver) {
+            return res.status(404).json({ error: "Approver not found." });
         }
 
-        // Update leave status to "Approved"
-        const updatedLeave = await prisma.leave.update({
-            where: { id: parseInt(id) },
-            data: { status: "Approved" },
+        const approvalOrder = ["INCHARGE", "PO", "HR", "PADM"]; // Approval hierarchy
+        const approverIndex = approvalOrder.indexOf(approver.role);
+
+        if (approverIndex === -1) {
+            return res.status(403).json({ error: "Invalid approver role." });
+        }
+
+        // Fetch the leave request and its approvals
+        const leave = await prisma.leave.findUnique({
+            where: { id: parseInt(leaveId) },
+            include: { approvals: true },
         });
 
-        res.status(200).json({
-            message: "Leave approved successfully.",
-            updatedLeave,
+        if (!leave) {
+            return res.status(404).json({ error: "Leave request not found." });
+        }
+
+        // Check if the previous approver has approved (if applicable)
+        if (approverIndex > 0) {
+            const previousRole = approvalOrder[approverIndex - 1];
+            const previousApproval = leave.approvals.find(
+                (approval) => approval.approverRole === previousRole && approval.status === "Approved"
+            );
+
+            if (!previousApproval) {
+                return res.status(403).json({
+                    error: `Cannot approve. Waiting for approval from ${previousRole}.`,
+                });
+            }
+        }
+
+        // Add the approval to the database
+        await prisma.approval.create({
+            data: {
+                leaveId: parseInt(leaveId),
+                approverId: parseInt(approverId),
+                approverRole: approver.role,
+                approverName: approver.name,
+                signature: approver.title, // Assuming signature is derived from the title or stored in the user model
+                status: "Approved",
+            },
         });
+
+        // Fetch all approvals for the current leave request
+        const approvals = await prisma.approval.findMany({ where: { leaveId: parseInt(leaveId) } });
+
+        // Construct the approvers data with name, role, and title
+        const approversDetails = approvals.map((approval) => ({
+            name: approval.approverName,
+            role: approval.approverRole,
+            title: approval.signature, // Assuming `signature` is a field in the approval model
+        }));
+
+        // Update the leave request's approvers details
+        await prisma.leave.update({
+            where: { id: parseInt(leaveId) },
+            data: { approvers: approversDetails },
+        });
+
+        // Check if all approvals are complete
+        const allApproved = approvalOrder.every((role) =>
+            approvals.some((approval) => approval.approverRole === role && approval.status === "Approved")
+        );
+
+        // Update the leave request status
+        const status = allApproved ? "Fully Approved" : `Approved by: ${approver.role}`;
+        await prisma.leave.update({
+            where: { id: parseInt(leaveId) },
+            data: { status },
+        });
+
+        res.status(200).json({ message: "Leave approved successfully." });
     } catch (error) {
         console.error("Error approving leave request:", error);
-        res.status(500).json({ error: "Failed to approve leave request." });
+        res.status(500).json({ error: "Internal server error." });
     }
 };
 
@@ -702,31 +771,95 @@ export const updateLeaveStatus = async (req, res) => {
     }
 };
 
-
 export const denyLeave = async (req, res) => {
-    try {
-        const { id } = req.params;
+  try {
+    const { id } = req.params;
+    const { approverId } = req.query; // Get approver ID from query parameters
 
-        // Validate that `id` exists
-        if (!id) {
-            return res.status(400).json({ error: "Leave ID is required." });
-        }
-
-        // Update leave status to "Denied"
-        const updatedLeave = await prisma.leave.update({
-            where: { id: parseInt(id) },
-            data: { status: "Denied" },
-        });
-
-        res.status(200).json({
-            message: "Leave denied successfully.",
-            updatedLeave,
-        });
-    } catch (error) {
-        console.error("Error denying leave request:", error);
-        res.status(500).json({ error: "Failed to deny leave request." });
+    // Validate that `id` and `approverId` exist
+    if (!id || !approverId) {
+      return res.status(400).json({ error: "Leave ID and approverId are required." });
     }
+
+    // Find the approver details
+    const approver = await prisma.user.findUnique({ where: { id: parseInt(approverId) } });
+    if (!approver) {
+      return res.status(404).json({ error: "Approver not found." });
+    }
+
+    const approvalOrder = ["INCHARGE", "PO", "HR", "PADM"]; // Approval hierarchy
+    const approverIndex = approvalOrder.indexOf(approver.role);
+
+    if (approverIndex === -1) {
+      return res.status(403).json({ error: "Invalid approver role." });
+    }
+
+    // Fetch the leave request and its approvals
+    const leaveRequest = await prisma.leave.findUnique({
+      where: { id: parseInt(id) },
+      include: { approvals: true },
+    });
+
+    if (!leaveRequest) {
+      return res.status(404).json({ error: "Leave request not found." });
+    }
+
+    // Check if the previous approver has approved (if applicable)
+    if (approverIndex > 0) {
+      const previousRole = approvalOrder[approverIndex - 1];
+      const previousApproval = leaveRequest.approvals.find(
+        (approval) => approval.approverRole === previousRole && approval.status === "Approved"
+      );
+
+      if (!previousApproval) {
+        return res.status(403).json({
+          error: `Cannot deny. Waiting for approval from ${previousRole}.`,
+        });
+      }
+    }
+
+    // Log the denial in the approvals table
+    await prisma.approval.create({
+      data: {
+        leaveRequestId: parseInt(id),
+        approverId: parseInt(approverId),
+        approverRole: approver.role,
+        approverName: approver.name,
+        signature: approver.title, // Assuming signature is derived from title or stored in the user model
+        status: "Denied",
+      },
+    });
+
+    // Fetch all approvals for the current leave request
+    const approvals = await prisma.approval.findMany({ where: { leaveRequestId: parseInt(id) } });
+
+    // Construct the approvers data with name, role, and title
+    const approversDetails = approvals.map((approval) => ({
+      name: approval.approverName,
+      role: approval.approverRole,
+      title: approval.signature,
+      action: approval.status,
+    }));
+
+    // Update the leave request's approvers details
+    await prisma.leave.update({
+      where: { id: parseInt(id) },
+      data: {
+        approvers: approversDetails,
+        status: "Denied",
+      },
+    });
+
+    res.status(200).json({
+      message: "Leave denied successfully.",
+      approvers: approversDetails,
+    });
+  } catch (error) {
+    console.error("Error denying leave request:", error);
+    res.status(500).json({ error: "Failed to deny leave request." });
+  }
 };
+
 
 
 

@@ -62,7 +62,7 @@ const LeaveManagementComponent: React.FC<LeaveManagementComponentProps> = ({ use
   const [newLeave, setNewLeave] = useState<{ startDate: string; endDate: string; reason: string }>({
     startDate: '',
     endDate: '',
-    reason: '',
+    reason: 'Sick Leave',
   });
   const [additionalReason, setAdditionalReason] = useState<string>('');
   const [leaveDuration, setLeaveDuration] = useState<number>(0);
@@ -171,6 +171,17 @@ const LeaveManagementComponent: React.FC<LeaveManagementComponentProps> = ({ use
       return;
     }
   
+    const payload = {
+      startDate: newLeave.startDate,
+      endDate: newLeave.endDate,
+      reason: leaveReason, // Reason text
+      leaveType: leaveType, // Mapped leave type
+      userId,
+    };
+  
+    // Log the payload
+    console.log("Sending payload to endpoint:", payload);
+  
     try {
       const response = await fetch("http://localhost:3030/api/leaves", {
         method: "POST",
@@ -178,13 +189,7 @@ const LeaveManagementComponent: React.FC<LeaveManagementComponentProps> = ({ use
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-        body: JSON.stringify({
-          startDate: newLeave.startDate,
-          endDate: newLeave.endDate,
-          reason: leaveReason,  // Reason text
-          leaveType: leaveType,  // Mapped leave type
-          userId,
-        }),
+        body: JSON.stringify(payload),
       });
   
       if (response.ok) {
@@ -193,16 +198,29 @@ const LeaveManagementComponent: React.FC<LeaveManagementComponentProps> = ({ use
         setNewLeave({ startDate: '', endDate: '', reason: '' });
         setAdditionalReason('');
         alert("Leave Request Submitted for Approval!");
-        
+  
         // Optionally reload the page after submitting
         window.location.reload();
       } else {
-        console.error("Failed to submit leave request.");
+        // Log error response details
+        const errorDetails = await response.json();
+        console.error("Failed to submit leave request:", {
+          status: response.status,
+          statusText: response.statusText,
+          details: errorDetails,
+        });
+        alert(
+          `Failed to submit leave request. Server responded with status ${response.status}: ${response.statusText}.`
+        );
       }
     } catch (error) {
+      // Log unexpected errors
       console.error("Error submitting leave request:", error);
+      alert("An unexpected error occurred while submitting the leave request. Please try again.");
     }
   };
+  
+  
 
   // Icon mapping for status
   const statusIcon = (status: 'Pending' | 'Approved' | 'Denied') => {

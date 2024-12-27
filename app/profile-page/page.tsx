@@ -375,9 +375,13 @@ const handleUpdateUser = (updatedUser: User) => {
                   <span>{userMain.address}</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="font-bold">Hire Date:</span>
-                  <span>{userMain.hireDate}</span>
-                </div>
+  <span className="font-bold">Hire Date:</span>
+  <span>
+    {new Intl.DateTimeFormat("en-US", { dateStyle: "long" }).format(
+      new Date(userMain.hireDate)
+    )}
+  </span>
+</div>
                 {isAdmin && (
 
                 <div className="flex items-center space-x-2">
@@ -387,12 +391,6 @@ const handleUpdateUser = (updatedUser: User) => {
                 )}
               </div>
             </CardContent>
-            <CardFooter>
-              <Button className="w-full" variant="outline">
-                <Camera className="w-4 h-4 mr-2" />
-                Change Photo
-              </Button>
-            </CardFooter>
           </Card>
           </div>
           <div
