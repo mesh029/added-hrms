@@ -329,19 +329,30 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
     );
   });
 
-// Example usage: Add a holiday row using the existing function
-const addHolidayRow = () => {
-  const kenyaHolidays = [
-    "2024-12-12", // Example holiday
-    "2024-12-25", // Example holiday
-    "2024-12-26", // Example holiday
-    "2024-12-31", // Example holiday
-  ];
+  const addHolidayRow = () => {
+    const kenyaHolidays = [
+      "2024-12-12", // December holiday
+      "2024-12-25", // December holiday
+      "2024-12-26", // December holiday
+      "2024-12-31", // December holiday
+      "2025-1-31", // December holiday
+      "2025-1-2", // December holiday
 
-  setKenyaHolidays(kenyaHolidays)
-  // Use the handleAddRow function to add a holiday row
-  handleAddRow("Holiday", kenyaHolidays);
-};
+    ];
+  
+    // Filter holidays for the current month only
+    const currentMonthHolidays = kenyaHolidays.filter(holiday => {
+      const holidayMonth = new Date(holiday).getMonth(); // Extract month from holiday date
+      return holidayMonth === currentMonth.getMonth();
+    });
+  
+    // If there are holidays for the current month, add them
+    if (currentMonthHolidays.length > 0) {
+      setKenyaHolidays(currentMonthHolidays);
+      handleAddRow("Holiday", currentMonthHolidays);
+    }
+  };
+  
 
 const addLeaveRow = (leaveRequests: { startDate: string; endDate: string; reason: string; leaveType: string }[]) => {
   leaveRequests.forEach((leave) => {
@@ -372,7 +383,7 @@ const addLeaveRow = (leaveRequests: { startDate: string; endDate: string; reason
       addHolidayRow(); // Add the holiday rows once
       setHolidaysAdded(true); // Mark as added to prevent future additions
     }
-  }, [timesheetEntries, holidaysAdded]); // Ensure it only runs when necessary
+  }, [currentMonth, holidaysAdded]); // Ensure it only runs when necessary
   const leavesAddedRef = useRef(false);
   useEffect(() => {
     if (!leavesAddedRef.current) {

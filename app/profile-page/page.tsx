@@ -375,6 +375,10 @@ const handleUpdateUser = (updatedUser: User) => {
                   <span>{userMain.address}</span>
                 </div>
                 <div className="flex items-center space-x-2">
+                  <span className="font-bold">Location:</span>
+                  <span>{userMain.location}</span>
+                </div>
+                <div className="flex items-center space-x-2">
   <span className="font-bold">Hire Date:</span>
   <span>
     {new Intl.DateTimeFormat("en-US", { dateStyle: "long" }).format(
@@ -561,7 +565,7 @@ const handleUpdateUser = (updatedUser: User) => {
               <TabsContent value="leave">
                 <LeaveManagementComponent userId={userMain.id} isApprover={isAdmin} />
                 {isAdmin && (
-                                  <AdminLeaveManagementComponent userRole={userMain.role} userId={userMain.id} userName={userMain.name} />
+                                  <AdminLeaveManagementComponent userRole={userMain.role} userId={userMain.id} userName={userMain.name} useLocation={userMain.location} />
 
                 )}
               </TabsContent>

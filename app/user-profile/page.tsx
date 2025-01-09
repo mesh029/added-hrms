@@ -26,7 +26,9 @@ import Header from "@/components/header"
 import AdminLeaveManagementComponent from "@/components/leaveAdmin"
 import Link from "next/link"
 
+
 import dynamic from 'next/dynamic';
+import FacilitiesAndLocationsInput from "@/components/facilitiesInput"
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -93,6 +95,18 @@ const sampleLeaves: Leave[] = [
   { id: "4", startDate: "2023-07-20", endDate: "2023-07-25", type: "Vacation", status: "Approved" },
 ]
 
+const predefinedFacilities = [
+  "Nairobi Hospital", "Kenyatta National Hospital", "Aga Khan University Hospital",
+  "Mater Hospital", "MP Shah Hospital", "Karen Hospital",
+  "Gertrude's Children's Hospital", "Coptic Hospital", 
+  "Nairobi Women's Hospital", "The Nairobi West Hospital"
+];
+
+const predefinedLocations = [
+  "Nairobi", "Mombasa", "Kisumu", "Eldoret", "Nakuru",
+  "Thika", "Malindi", "Garissa", "Nyeri", "Kitale"
+];
+
 export default function UserProfilePage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isEditMode, setIsEditMode] = useState(true)
@@ -105,9 +119,12 @@ export default function UserProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const router = useRouter()
+  const [facilitySearch, setFacilitySearch] = useState("");
+  const [locationSearch, setLocationSearch] = useState("");
 
   const [searchParams, setSearchParams] = useState<URLSearchParams | null>(null);  const [token, setToken] = useState<string | null>(null);  const { toast } = useToast()
 
+  
   const locations = [
     "Kisumu",
     "Nyamira",
@@ -214,7 +231,7 @@ export default function UserProfilePage() {
 
         // Filter users with roles 'admin' or 'approver'
         const filteredManagers = allUsers.filter((user: any) =>
-          ["admin", "approver", "incharge"].includes(user.role.toLowerCase())
+          ["admin", "approver", "incharge", "po"].includes(user.role.toLowerCase())
         );
 
         setManagers(filteredManagers);
@@ -657,7 +674,7 @@ render={({ field }) => (
                   
                   </div>
       )}
-      {["STAFF"].includes(selectedRole) && (
+      {["STAFF","INCHARGE"].includes(selectedRole) && (
         <>
                                   <div className="space-y-2">
    

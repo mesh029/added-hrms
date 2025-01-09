@@ -32,6 +32,8 @@ model Approval {
 model User {
   id                      Int        @id @default(autoincrement())
   name                    String
+  facilities              Json?       // Array of facilities for PO users
+  locations                Json?
   phone                   String?
   title                   String?
   facility                String?

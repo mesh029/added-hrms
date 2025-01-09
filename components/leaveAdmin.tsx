@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import * as Dialog from '@radix-ui/react-dialog';
+import LeaveApprovalFlowComponent from './leaveApprovalFlow';
 
 interface LeaveRequest {
   id: number;
@@ -27,6 +28,7 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
   const [expandedLeave, setExpandedLeave] = useState<number | null>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false); // To control the popup state
   const [selectedLeaveId, setSelectedLeaveId] = useState<number | null>(null);
+  const [leaveRequests2, setLeaveRequests2] = useState<LeaveRequest[]>([]);
 
   useEffect(() => {
     const fetchLeaveRequests = async () => {
@@ -55,6 +57,43 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
         console.error("Error fetching leave requests:", error);
       }
     };
+
+    const fetchLeaveRequests2 = async () => {
+      const token = localStorage.getItem("jwtToken");
+    
+      if (!token) {
+        console.error("Token is missing. Please log in.");
+        return;
+      }
+    
+      try {
+        const response = await fetch(`http://localhost:3030/api/leaves/role/${userId}`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+    
+        if (response.ok) {
+          const data = await response.json();
+          console.log(data)
+    
+          if (data) {
+            setLeaveRequests2(data);
+          } else {
+            console.error("No leave requests found in the response.");
+          }
+        } else {
+          // Log the response status and text if the request failed
+          const errorText = await response.text();
+          console.error(`Failed to fetch leave requests. Status: ${response.status}, Response: ${errorText}`);
+        }
+      } catch (error) {
+        // Catch and log any errors that occur during the fetch or JSON parsing
+        console.error("Error fetching leave requests:", error);
+      }
+    };
+    
   
     const fetchUserData = async () => {
       const token = localStorage.getItem("jwtToken");
@@ -95,6 +134,7 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
   
     fetchLeaveRequests();
     fetchUserData();
+    fetchLeaveRequests2()
   }, []);
 
   const handleApprove = async (id: number) => {
@@ -151,14 +191,21 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
     setExpandedLeave((prev) => (prev === id ? null : id));
   };
 
+ 
   const filteredLeaves = leaveRequests.filter(
     (request) =>
-      userRole === "Admin" || userManagers[request.userId] === userName
+      userRole === "admin" || userManagers[request.userId] === userName
   );
 
   const approvedLeaves = filteredLeaves.filter((request) => request.status === "Approved");
   const pendingLeaves = filteredLeaves.filter((request) => request.status === "Pending");
   const rejectedLeaves = filteredLeaves.filter((request) => request.status === "Denied");
+  const otherLeaves = filteredLeaves.filter(
+    (request) => !["Approved", "Pending", "Denied"].includes(request.status)
+  );
+  
+
+
 
   return (
     <>
@@ -171,6 +218,58 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
         ) : (
           <>
             {/* Approved Leaves Section */}
+            <h2 className="text-xl font-bold mb-4">Your Leaves</h2>
+
+            <div className="overflow-x-auto mb-6 max-h-72">
+              <Table className="min-w-full">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Status</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Start Date</TableHead>
+                    <TableHead>End Date</TableHead>
+                    <TableHead>Expand</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {leaveRequests2.map((request) => (
+                    <React.Fragment key={request.id}>
+                      <TableRow>
+                        <TableCell>{request.status}</TableCell>
+                        <TableCell>{userNames[request.userId] || "Unknown"}</TableCell>
+                        <TableCell>{request.id}</TableCell>
+                        <TableCell>{formatDate(request.startDate)}</TableCell>
+                        <TableCell>{formatDate(request.endDate)}</TableCell>
+                        <TableCell>
+                          <button onClick={() => toggleExpand(request.id)}>
+                            {expandedLeave === request.id ? "⬇️" : "➡️"}
+                          </button>
+                        </TableCell>
+                      </TableRow>
+                      {expandedLeave === request.id && (
+                        <>
+                        <TableRow>
+                          <TableCell colSpan={6}>
+                            <div className="p-4 bg-gray-100 rounded">
+                              <p><strong>Reason:</strong> {request.reason}</p>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                        <TableCell colSpan={6}>
+                          <div className="p-4 bg-gray-100 rounded">
+                            <LeaveApprovalFlowComponent leaveId={request.id} />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      </>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
             <h2 className="text-xl font-bold mb-4">Approved Leaves</h2>
             <div className="overflow-x-auto mb-6 max-h-72">
               <Table className="min-w-full">
@@ -200,6 +299,7 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
                         </TableCell>
                       </TableRow>
                       {expandedLeave === request.id && (
+                        <>
                         <TableRow>
                           <TableCell colSpan={6}>
                             <div className="p-4 bg-gray-100 rounded">
@@ -207,6 +307,14 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
                             </div>
                           </TableCell>
                         </TableRow>
+                        <TableRow>
+                        <TableCell colSpan={6}>
+                          <div className="p-4 bg-gray-100 rounded">
+                            <LeaveApprovalFlowComponent leaveId={request.id} />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      </>
                       )}
                     </React.Fragment>
                   ))}
@@ -306,6 +414,62 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
                             </div>
                           </TableCell>
                         </TableRow>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+
+
+            <h2 className="text-xl font-bold mb-4">Approval in Progress</h2>
+
+            <div className="overflow-x-auto mb-6 max-h-72">
+              <Table className="min-w-full">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Status</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Start Date</TableHead>
+                    <TableHead>End Date</TableHead>
+                    <TableHead>Expand</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {otherLeaves.map((request) => (
+                    <React.Fragment key={request.id}>
+                      <TableRow>
+                      <TableCell>⏳</TableCell>
+                      <TableCell>{userNames[request.userId] || "Unknown"}</TableCell>
+                        <TableCell>{request.id}</TableCell>
+                        <TableCell>{formatDate(request.startDate)}</TableCell>
+                        <TableCell>{formatDate(request.endDate)}</TableCell>
+                        <TableCell>
+                          <button onClick={() => toggleExpand(request.id)}>
+                            {expandedLeave === request.id ? "⬇️" : "➡️"}
+                          </button>
+                        </TableCell>
+                      </TableRow>
+                      {expandedLeave === request.id && (
+                        <>
+                        <TableRow>
+                          <TableCell colSpan={6}>
+                            <div className="p-4 bg-gray-100 rounded">
+                              <p><strong>Reason:</strong> {request.reason}</p>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+
+                         <TableRow>
+                        <TableCell colSpan={6}>
+                          <div className="p-4 bg-gray-100 rounded">
+                            <LeaveApprovalFlowComponent leaveId={request.id} />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      </>
                       )}
                     </React.Fragment>
                   ))}

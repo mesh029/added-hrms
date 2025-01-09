@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { X } from "lucide-react";
 import * as z from "zod"
 import { format } from "date-fns"
 import { Calendar as CalendarIcon, User, Briefcase, Mail, Scale, Ruler, MapPin, Users } from "lucide-react"
@@ -20,19 +21,25 @@ import { useToast } from "@/hooks/use-toast"
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+  phone: z.string().optional(),
+  title: z.string().optional(),
+  facilities: z.array(z.string()).optional(),  // Array of facilities
+  locations: z.array(z.string()).optional(),  // Array of locations
+  location: z.string().optional(),
   email: z.string().email({ message: "Invalid email address." }),
   password: z.string().min(8, { message: "Password must be at least 8 characters." }).optional(),
   role: z.string().min(1, { message: "Role is required." }),
   department: z.string().min(1, { message: "Department is required." }),
-  address: z.string().min(1, { message: "Address is required." }),
+  pay: z.number().optional(),
   hireDate: z.date({ required_error: "Hire date is required." }),
   endDate: z.date().optional(),
   reportsTo: z.string().min(1, { message: "Reports To is required." }),
-  manager: z.string().optional(),
   weight: z.string().optional(),
   height: z.string().optional(),
-  leaveDays: z.number().min(0, { message: "Leave days must be a positive number." }),
-})
+  address: z.string().min(1, { message: "Address is required." }),
+  manager: z.string().optional(),
+  leaveDays: z.number().min(0, { message: "Leave days must be a positive number." }).optional(),
+});
 
 // Mock array of existing users
 const existingUsers = [
@@ -62,6 +69,8 @@ export default function UserInformationForm() {
       weight: "",
       height: "",
       leaveDays: 0,
+      facilities:[],
+      locations:[],
     },
   })
 

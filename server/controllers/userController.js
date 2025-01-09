@@ -396,6 +396,41 @@ export const getTimesheetForApprovers = async (req, res) => {
     }
 };
 
+
+export const getLeaveApprovalFlow = async (req, res) => {
+  try {
+      const { id: leaveId } = req.params;
+      // Validate the timesheetId
+      if (!leaveId) {
+          return res.status(400).json({ error: "Timesheet ID is required." });
+      }
+
+      // Fetch the approval flow for the timesheet
+      const approvals = await prisma.approval.findMany({
+          where: {
+              leaveRequestId: parseInt(leaveId, 10), // Ensure timesheetId is a valid number
+          },
+          orderBy: {
+              timestamp: "asc", // Order by timestamp to show the approval flow
+          },
+          include: {
+              approver: true, // Include approver details
+              timesheet: true, // Include timesheet details
+          },
+      });
+
+      // Check if approvals exist for the given timesheetId
+      if (approvals.length === 0) {
+          return res.status(404).json({ error: "No approval flow found for the provided leave." });
+      }
+
+      // Respond with the approval flow data
+      return res.status(200).json(approvals);
+  } catch (error) {
+      console.error(error);
+      return res.status(500).json({ error: "An error occurred while fetching the approval flow." });
+  }
+};
   
 
 export const createLeaveRequest = async (req, res) => {
@@ -695,7 +730,7 @@ export const approveLeave = async (req, res) => {
         // Add the approval to the database
         await prisma.approval.create({
             data: {
-                leaveId: parseInt(leaveId),
+                leaveRequestId: parseInt(leaveId),
                 approverId: parseInt(approverId),
                 approverRole: approver.role,
                 approverName: approver.name,
@@ -705,7 +740,7 @@ export const approveLeave = async (req, res) => {
         });
 
         // Fetch all approvals for the current leave request
-        const approvals = await prisma.approval.findMany({ where: { leaveId: parseInt(leaveId) } });
+        const approvals = await prisma.approval.findMany({ where: { leaveRequestId: parseInt(leaveId) } });
 
         // Construct the approvers data with name, role, and title
         const approversDetails = approvals.map((approval) => ({
@@ -738,6 +773,117 @@ export const approveLeave = async (req, res) => {
         res.status(500).json({ error: "Internal server error." });
     }
 };
+
+export const getLeaveRequestsByRole = async (req, res) => {
+  const { userId } = req.params;  // Get the userId from the URL parameter (current user)
+
+  // Validate userId
+  if (!userId) {
+      return res.status(400).json({ error: "Missing userId parameter." });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(userId) },
+      select: { 
+          id: true, 
+          name: true, 
+          role: true,   // Directly select the role field
+          location: true, 
+          reportsTo: true 
+      },
+  });
+  
+  console.log(user);  
+      if (!user) {
+          return res.status(404).json({ error: "User not found." });
+      }
+
+      const { role, location, reportsTo, name } = user;
+
+      // Fetch all users
+      const allUsers = await prisma.user.findMany();
+
+      // Fetch all leave requests, including user and approval details
+      let leaveRequests = await prisma.leave.findMany({
+          include: {
+              approvals: true,
+              user: true,  // Include user details with each leave request
+          },
+      });
+
+
+      // Map the leave requests to their associated users
+      leaveRequests = leaveRequests.map(leaveRequest => {
+          const user = allUsers.find(u => u.id === leaveRequest.userId);
+          return { ...leaveRequest, user }; // Attach the user details to each leave request
+      });
+
+      // Filter based on role and user attributes
+      if (role === "HR") {
+          // HR sees leave requests approved by PO and submitted by users in HR's location
+          leaveRequests = leaveRequests.filter(leave => {
+              const isApprovedByPO = leave.approvals.some(approval => approval.approverRole === "PO");
+              const isInHRLocation = leave.user.location === location;
+              return isApprovedByPO && isInHRLocation;
+          });
+      }
+
+      else if (role === "INCHARGE") {
+          // Facility Incharge sees leaves from users who report to them
+          leaveRequests = leaveRequests.filter(leave => {
+              return leave.user.reportsTo === name 
+          });
+          console.log(leaveRequests)
+
+      }
+      else if (role === "PO") {
+        // PO sees leave requests from users who report to them and have been approved by a Facility Incharge who reports to them
+        leaveRequests = leaveRequests.filter(leave => {
+            // Check if the leave has been approved by any Facility Incharge
+            const isApprovedByFacilityIncharge = leave.approvals.some(approval => {
+                // Check if the approver is a Facility Incharge
+                if (approval.approverRole === "INCHARGE") {
+                    // Fetch the Facility Incharge (from the approval) and check if they report to the PO
+                    return leave.user.reportsTo === approval.approverName; // Check if the Facility Incharge reports to PO
+                }
+                return false;
+            });
+    
+            // Check if the leave request user reports to the PO
+            const isFromUserReportingToPO = leave.user.reportsTo === name;
+    
+            // Return the leave request if both conditions are met
+            return isApprovedByFacilityIncharge && isFromUserReportingToPO;
+        });
+    
+        console.log(leaveRequests); // Log filtered leave requests
+    }
+    
+    
+      
+
+      else if (role === "PADM") {
+          // PADM sees leave requests approved by HR
+          leaveRequests = leaveRequests.filter(leave => {
+              const isApprovedByHR = leave.approvals.some(approval => approval.approverRole === "HR");
+              return isApprovedByHR;
+          });
+      }
+
+      // If no leave requests match the filters
+      if (!leaveRequests || leaveRequests.length === 0) {
+          return res.status(404).json({ error: "No leave requests found for this role." });
+      }
+
+      // Respond with the filtered leave requests
+      res.status(200).json(leaveRequests);
+  } catch (error) {
+      console.error("Error fetching leave requests:", error);
+      res.status(500).json({ error: "Internal server error." });
+  }
+};
+
 
 export const updateLeaveStatus = async (req, res) => {
     try {
