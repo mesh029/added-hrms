@@ -61,6 +61,7 @@ model User {
   approvals   Approval[]
   leaves      Leave[]
   timesheets  Timesheet[]
+  notifications  Notification[]
   
 
 }
@@ -78,21 +79,22 @@ model Leave {
   leaveType  String?
 
   approvals  Approval[]
+  notifications  Notification[]
 }
 
 model Notification {
   id             Int      @id @default(autoincrement())
-  recipientId    Int      // User receiving the notification
+  recipientId    Int
   message        String
-  leaveRequestId Int?     // Optional for leave-related notifications
-  timesheetId    Int?     // Optional for timesheet-related notifications
+  leaveRequestId Int?     // Optional for leave notifications
+  timesheetId    Int?     // Optional for timesheet notifications
   createdAt      DateTime @default(now())
   read           Boolean  @default(false)
 
-  // Relations
-  recipient      User     @relation(fields: [id], references: [id])
-  leaveRequest   Leave?   @relation(fields: [id], references: [id])
-  timesheet      Timesheet? @relation(fields: [id], references: [id])
+  // Simplified relations without conflicting constraint names
+  recipient      User?       @relation(fields: [recipientId], references: [id])
+  leaveRequest   Leave?      @relation(fields: [leaveRequestId], references: [id])
+  timesheet      Timesheet?  @relation(fields: [timesheetId], references: [id])
 }
 
 
@@ -107,6 +109,7 @@ model Timesheet {
   status    String   // Status of the timesheet (Draft, Ready, etc.)
 
   approvals  Approval[]
+  notifications  Notification[]
 }
 
 model TimesheetEntry {
