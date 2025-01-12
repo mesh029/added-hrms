@@ -565,7 +565,7 @@ const handleUpdateUser = (updatedUser: User) => {
               <TabsContent value="leave">
                 <LeaveManagementComponent userId={userMain.id} isApprover={isAdmin} />
                 {isAdmin && (
-                                  <AdminLeaveManagementComponent userRole={userMain.role} userId={userMain.id} userName={userMain.name} useLocation={userMain.location} />
+                                  <AdminLeaveManagementComponent userRole={userMain.role} userId={userMain.id} userName={userMain.name} userLocation={userMain.location} />
 
                 )}
               </TabsContent>

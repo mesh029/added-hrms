@@ -696,7 +696,7 @@ export const approveLeave = async (req, res) => {
             return res.status(404).json({ error: "Approver not found." });
         }
 
-        const approvalOrder = ["INCHARGE", "PO", "HR", "PADM"]; // Approval hierarchy
+        const approvalOrder = ["INCHARGE", "PO", "HR"]; // Approval hierarchy
         const approverIndex = approvalOrder.indexOf(approver.role);
 
         if (approverIndex === -1) {
@@ -821,56 +821,98 @@ export const getLeaveRequestsByRole = async (req, res) => {
 
       // Filter based on role and user attributes
       if (role === "HR") {
-          // HR sees leave requests approved by PO and submitted by users in HR's location
-          leaveRequests = leaveRequests.filter(leave => {
-              const isApprovedByPO = leave.approvals.some(approval => approval.approverRole === "PO");
-              const isInHRLocation = leave.user.location === location;
-              return isApprovedByPO && isInHRLocation;
-          });
-      }
-
-      else if (role === "INCHARGE") {
-          // Facility Incharge sees leaves from users who report to them
-          leaveRequests = leaveRequests.filter(leave => {
-              return leave.user.reportsTo === name 
-          });
-          console.log(leaveRequests)
-
-      }
-      else if (role === "PO") {
-        // PO sees leave requests from users who report to them and have been approved by a Facility Incharge who reports to them
+        // HR sees leave requests approved by PO and from users in HR's location or related locations
+        const relatedLocations = {
+            "Kisumu": ["Kisumu", "Kakamega", "Vihiga"],
+            "Nyamira": ["Nyamira", "Kisii", "Migori"],
+            "Kakamega": ["Kisumu", "Kakamega", "Vihiga"],
+            // Add other locations and their related locations here
+        };
+    
+        // Get the list of related locations for the HR's location
+        const userLocation = location; // HR's location
+        const possibleLocations = relatedLocations[userLocation] || [userLocation]; // Default to HR's location if not in the map
+    
+        // Filter leave requests
         leaveRequests = leaveRequests.filter(leave => {
-            // Check if the leave has been approved by any Facility Incharge
-            const isApprovedByFacilityIncharge = leave.approvals.some(approval => {
-                // Check if the approver is a Facility Incharge
-                if (approval.approverRole === "INCHARGE") {
-                    // Fetch the Facility Incharge (from the approval) and check if they report to the PO
-                    return leave.user.reportsTo === approval.approverName; // Check if the Facility Incharge reports to PO
-                }
-                return false;
-            });
+            // Check if the leave's status is "Approved by PO"
+            const isApprovedByPO = leave.status === "Approved by: PO";
+            
+            // Check if any of the approvals are from PO
+            const isApprovedByPOApproval = leave.approvals.some(approval => approval.approverRole === "PO");
     
-            // Check if the leave request user reports to the PO
-            const isFromUserReportingToPO = leave.user.reportsTo === name;
+            // Check if the leave is from a user in HR's location or related locations
+            const isInRelatedLocation = possibleLocations.includes(leave.user.location);
     
-            // Return the leave request if both conditions are met
-            return isApprovedByFacilityIncharge && isFromUserReportingToPO;
+            // Only include leave requests that are approved by PO (status and approval check) and are from users in related locations
+            return isApprovedByPO && isApprovedByPOApproval && isInRelatedLocation;
         });
     
-        console.log(leaveRequests); // Log filtered leave requests
+        console.log(leaveRequests); // Debug filtered leave requests
     }
+    
+
+    else if (role === "INCHARGE") {
+      // Facility Incharge sees leaves from users who report to them and whose status is 'Pending'
+      leaveRequests = leaveRequests.filter(leave => {
+        return leave.user.reportsTo === name && leave.status === "Pending";
+      });
+      console.log(leaveRequests);
+    }
+    
+    
+      else if (role === "PO") {
+        // PO sees leave requests approved by Facility Incharges who report to them
+        leaveRequests = await Promise.all(
+            leaveRequests.map(async leave => {
+                // Filter approvals to find relevant INCHARGE approvals
+                const relevantInchargeApproval = await Promise.all(
+                    leave.approvals.map(async approval => {
+                        if (approval.approverRole === "INCHARGE") {
+                            // Fetch the Facility Incharge from the Users table
+                            const facilityIncharge = await prisma.user.findUnique({
+                                where: { name: approval.approverName },
+                                select: { reportsTo: true }
+                            });
+    
+                            // Check if the Facility Incharge reports to the current PO
+                            if (facilityIncharge?.reportsTo === name) {
+                                // Check if the leave status is 'Approved by: INCHARGE'
+                                if (leave.status === "Approved by: INCHARGE") {
+                                    return leave; // Return the leave request if the INCHARGE reports to PO and status is 'Approved by: INCHARGE'
+                                }
+                            }
+                        }
+                        return null;
+                    })
+                );
+    
+                // Return the leave request if a relevant incharge approval with the correct status was found
+                return relevantInchargeApproval.find(Boolean); // Return the leave request or null
+            })
+        );
+    
+        // Remove any null entries from the result array
+        leaveRequests = leaveRequests.filter(Boolean);
+    
+        console.log(leaveRequests); // Debug filtered leave requests
+    }
+    
     
     
       
 
-      else if (role === "PADM") {
-          // PADM sees leave requests approved by HR
-          leaveRequests = leaveRequests.filter(leave => {
-              const isApprovedByHR = leave.approvals.some(approval => approval.approverRole === "HR");
-              return isApprovedByHR;
-          });
-      }
-
+    else if (role === "PADM") {
+      // First, filter out the leave requests where HR has already marked approval
+      leaveRequests = leaveRequests.filter(leave => {
+          // Check if there's an HR approval
+          const hrApproval = leave.approvals.find(approval => approval.approverRole === "HR" && approval.status === "Approved");
+  
+          // If HR has approved, we filter by leave status
+          return hrApproval && leave.status === "Approved by: HR";
+      });
+  }
+  
       // If no leave requests match the filters
       if (!leaveRequests || leaveRequests.length === 0) {
           return res.status(404).json({ error: "No leave requests found for this role." });

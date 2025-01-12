@@ -11,16 +11,17 @@ interface LeaveRequest {
   startDate: string;
   endDate: string;
   reason: string;
-  status: 'Pending' | 'Approved' | 'Denied';
+  status: 'Fully Approved' | 'Approved' | 'Denied' | 'Pending';
 }
 
 interface AdminLeaveManagementComponentProps {
   userId: number;
   userRole: string;
-  userName: string; // Role of the logged-in user (e.g., "admin", "manager")
+  userName: string;
+  userLocation: string; // Role of the logged-in user (e.g., "admin", "manager")
 }
 
-const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps> = ({ userId, userRole, userName }) => {
+const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps> = ({ userId, userRole, userName, userLocation }) => {
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [userNames, setUserNames] = useState<{ [key: number]: string }>({});
   const [userManagers, setUserManagers] = useState<{ [key: number]: string}>({});
@@ -192,12 +193,17 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
   };
 
  
-  const filteredLeaves = leaveRequests.filter(
-    (request) =>
-      userRole === "admin" || userManagers[request.userId] === userName
-  );
+  const allowedRoles = ["admin", "HR", "PADM", "INCHARGE", "PO"];
 
-  const approvedLeaves = filteredLeaves.filter((request) => request.status === "Approved");
+  const filteredLeaves = leaveRequests.filter((request) => {
+    // If the user is an admin, or their role is one of the allowed roles, or they are a manager of the user
+    return (
+      allowedRoles.includes(userRole) || 
+      userManagers[request.userId] === userName
+    );
+  });
+
+  const approvedLeaves = filteredLeaves.filter((request) => request.status === "Fully Approved");
   const pendingLeaves = filteredLeaves.filter((request) => request.status === "Pending");
   const rejectedLeaves = filteredLeaves.filter((request) => request.status === "Denied");
   const otherLeaves = filteredLeaves.filter(
@@ -218,7 +224,7 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
         ) : (
           <>
             {/* Approved Leaves Section */}
-            <h2 className="text-xl font-bold mb-4">Your Leaves</h2>
+            <h2 className="text-xl font-bold mb-4">For your Action</h2>
 
             <div className="overflow-x-auto mb-6 max-h-72">
               <Table className="min-w-full">
@@ -241,6 +247,16 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
                         <TableCell>{request.id}</TableCell>
                         <TableCell>{formatDate(request.startDate)}</TableCell>
                         <TableCell>{formatDate(request.endDate)}</TableCell>
+                        <TableCell>
+                          <>
+                            <Button onClick={() => handleApprove(request.id)} className="mr-2">
+                              Approve
+                            </Button>
+                            <Button onClick={() => handleReject(request.id)} variant="destructive">
+                              Reject
+                            </Button>
+                          </>
+                        </TableCell>
                         <TableCell>
                           <button onClick={() => toggleExpand(request.id)}>
                             {expandedLeave === request.id ? "⬇️" : "➡️"}

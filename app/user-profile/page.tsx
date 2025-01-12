@@ -152,7 +152,7 @@ export default function UserProfilePage() {
       weight: "",
       height: "",
       leaveDays: 0,
-      location: "PATH",
+      location: "Kisumu",
       phone: "",
       facility:"PATH",
       pay: 5000
