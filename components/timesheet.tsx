@@ -270,7 +270,7 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
       // Filter leave requests for the current user and approved status
       const approvedLeavesForUser = leaveRequests.filter(
         (leave: { userId: number; status: string }) =>
-          leave.userId === currentUserId && leave.status === 'Approved'
+          leave.userId === currentUserId && leave.status === 'Fully Approved'
       );
 
       // Format leave requests to the expected structure

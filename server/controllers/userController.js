@@ -95,6 +95,28 @@ export const getUserById = async (req, res) => {
     }
 };
 
+// Endpoint to fetch notifications for the user
+export const getNotifications = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const notifications = await prisma.notification.findMany({
+      where: { recipientId: Number(userId) },
+      orderBy: { createdAt: 'desc' }, // Show the latest notifications first
+    });
+
+    if (notifications.length > 0) {
+      res.json(notifications);
+    } else {
+      res.status(404).json({ error: 'No notifications found' });
+    }
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({ error: 'Error fetching notifications' });
+  }
+};
+
+
 // Update a user
 export const updateUser = async (req, res) => {
     const { id } = req.params;
@@ -680,6 +702,7 @@ export const getLeaveRequests = async (req, res) => {
     }
 };
 
+/** 
 export const approveLeave = async (req, res) => {
     const { id: leaveId } = req.params; // Get leave ID from URL parameter
     const { approverId } = req.query; // Get approver ID from query parameters
@@ -774,6 +797,133 @@ export const approveLeave = async (req, res) => {
     }
 };
 
+*/
+export const approveLeave = async (req, res) => {
+  const { id: leaveId } = req.params;
+  const { approverId } = req.query;
+
+  if (!leaveId || !approverId) {
+      return res.status(400).json({ error: "Missing leaveId or approverId parameter." });
+  }
+
+  try {
+      const approver = await prisma.user.findUnique({ where: { id: parseInt(approverId) } });
+      if (!approver) {
+          return res.status(404).json({ error: "Approver not found." });
+      }
+
+      const approvalOrder = ["INCHARGE", "PO", "HR"];
+      const approverIndex = approvalOrder.indexOf(approver.role);
+
+      if (approverIndex === -1) {
+          return res.status(403).json({ error: "Invalid approver role." });
+      }
+
+      const leave = await prisma.leave.findUnique({
+          where: { id: parseInt(leaveId) },
+          include: { approvals: true, user: true },
+      });
+
+      if (!leave) {
+          return res.status(404).json({ error: "Leave request not found." });
+      }
+
+      // Check if previous approvals exist and ensure approval order is followed
+      if (approverIndex > 0) {
+          const previousRole = approvalOrder[approverIndex - 1];
+          const previousApproval = leave.approvals.find(
+              (approval) => approval.approverRole === previousRole && approval.status === "Approved"
+          );
+
+          if (!previousApproval) {
+              return res.status(403).json({
+                  error: `Cannot approve. Waiting for approval from ${previousRole}.`,
+              });
+          }
+      }
+
+      await prisma.approval.create({
+          data: {
+              leaveRequestId: parseInt(leaveId),
+              approverId: parseInt(approverId),
+              approverRole: approver.role,
+              approverName: approver.name,
+              signature: approver.title,
+              status: "Approved",
+          },
+      });
+
+      const approvals = await prisma.approval.findMany({ where: { leaveRequestId: parseInt(leaveId) } });
+      const approversDetails = approvals.map(approval => ({
+          name: approval.approverName,
+          role: approval.approverRole,
+          title: approval.signature,
+      }));
+
+      await prisma.leave.update({
+          where: { id: parseInt(leaveId) },
+          data: { approvers: approversDetails },
+      });
+
+      const allApproved = approvalOrder.every((role) =>
+          approvals.some((approval) => approval.approverRole === role && approval.status === "Approved")
+      );
+
+      const status = allApproved ? "Fully Approved" : `Approved by: ${approver.role}`;
+      await prisma.leave.update({
+          where: { id: parseInt(leaveId) },
+          data: { status },
+      });
+
+      // Determine the next approver based on the current role
+      let nextRole, nextApprover;
+      if (approver.role === "INCHARGE") {
+          nextRole = "PO";
+          nextApprover = await prisma.user.findFirst({
+              where: { role: nextRole, reportsTo: approver.reportsTo }, // Get PO who the Incharge reports to
+          });
+      } else if (approver.role === "PO") {
+          nextRole = "HR";
+          nextApprover = await prisma.user.findFirst({
+              where: { role: nextRole, location: leave.user.location }, // Get HR in the same location as the staff
+          });
+      }
+
+      // Send notification to the next approver (if any)
+      if (nextApprover) {
+          await prisma.notification.create({
+              data: {
+                  recipientId: nextApprover.id,
+                  message: `Leave request ${leaveId} is awaiting your approval as ${nextRole}.`,
+                  leaveRequestId: parseInt(leaveId),
+              },
+          });
+      }
+
+      // Send notification to all approvers (if leave is fully approved)
+      const recipients = leave.approvals.map(a => a.approverId);
+
+      for (const recipientId of recipients) {
+          await prisma.notification.create({
+              data: {
+                  recipientId,
+                  message: allApproved ?
+                      `Leave request ${leaveId} has been fully approved.` :
+                      `Leave request ${leaveId} was approved by ${approver.role}`,
+                  leaveRequestId: parseInt(leaveId),
+              },
+          });
+      }
+
+      res.status(200).json({ message: "Leave approved successfully." });
+  } catch (error) {
+      console.error("Error approving leave request:", error);
+      res.status(500).json({ error: "Internal server error." });
+  }
+};
+
+
+
 export const getLeaveRequestsByRole = async (req, res) => {
   const { userId } = req.params;  // Get the userId from the URL parameter (current user)
 
@@ -860,7 +1010,7 @@ export const getLeaveRequestsByRole = async (req, res) => {
       console.log(leaveRequests);
     }
     
-    
+
       else if (role === "PO") {
         // PO sees leave requests approved by Facility Incharges who report to them
         leaveRequests = await Promise.all(

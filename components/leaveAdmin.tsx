@@ -204,7 +204,7 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
   });
 
   const approvedLeaves = filteredLeaves.filter((request) => request.status === "Fully Approved");
-  const pendingLeaves = filteredLeaves.filter((request) => request.status === "Pending");
+  const pendingLeaves = filteredLeaves.filter((request) => request.status !== "Fully Approved");
   const rejectedLeaves = filteredLeaves.filter((request) => request.status === "Denied");
   const otherLeaves = filteredLeaves.filter(
     (request) => !["Approved", "Pending", "Denied"].includes(request.status)
@@ -363,29 +363,28 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
                         <TableCell>{formatDate(request.startDate)}</TableCell>
                         <TableCell>{formatDate(request.endDate)}</TableCell>
                         <TableCell>
-                          <>
-                            <Button onClick={() => handleApprove(request.id)} className="mr-2">
-                              Approve
-                            </Button>
-                            <Button onClick={() => handleReject(request.id)} variant="destructive">
-                              Reject
-                            </Button>
-                          </>
-                        </TableCell>
-                        <TableCell>
                           <button onClick={() => toggleExpand(request.id)}>
                             {expandedLeave === request.id ? "⬇️" : "➡️"}
                           </button>
                         </TableCell>
                       </TableRow>
                       {expandedLeave === request.id && (
+                        <>
                         <TableRow>
-                          <TableCell colSpan={7}>
+                          <TableCell colSpan={6}>
                             <div className="p-4 bg-gray-100 rounded">
                               <p><strong>Reason:</strong> {request.reason}</p>
                             </div>
                           </TableCell>
                         </TableRow>
+                        <TableRow>
+                        <TableCell colSpan={6}>
+                          <div className="p-4 bg-gray-100 rounded">
+                            <LeaveApprovalFlowComponent leaveId={request.id} />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      </>
                       )}
                     </React.Fragment>
                   ))}

@@ -114,6 +114,8 @@ useEffect(() => {
     })
     .then((userData) => {
       const userId = userData.id;
+      localStorage.setItem('userData', JSON.stringify(userData)); // Store user data in localStorage
+
       
 
       return fetch(`http://localhost:3030/api/users/${userId}`, {
