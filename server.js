@@ -1,6 +1,6 @@
 import express from 'express';
 import { adminMiddleware, authenticateJWT, authenticateToken } from './server/middlewares/authMiddleWare.js';
-import { createUser, getUsers, getUserById, updateUser, deleteUser, login, submitTimesheet,getTimesheetsByUser, createLeaveRequest, getLeaveRequests, getUserLeaves, approveLeave, denyLeave, updateLeaveStatus, getTimesheets, getTimesheetEntry, getTimesheet, approveTimesheet, getTimesheetForApprovers, getApprovalFlow, rejectTimesheet, getLeaveApprovalFlow, getLeaveRequestsByRole, getNotifications } from './server/controllers/userController.js';
+import { createUser, getUsers, getUserById, updateUser, deleteUser, login, submitTimesheet,getTimesheetsByUser, createLeaveRequest, getLeaveRequests, getUserLeaves, approveLeave, denyLeave, updateLeaveStatus, getTimesheets, getTimesheetEntry, getTimesheet, approveTimesheet, getTimesheetForApprovers, getApprovalFlow, rejectTimesheet, getLeaveApprovalFlow, getLeaveRequestsByRole, getNotifications, getLeaveRequests2 } from './server/controllers/userController.js';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import cors from 'cors';
@@ -30,7 +30,6 @@ app.post('/api/timesheets', submitTimesheet);
 app.post('/api/timesheets/:id/approve', approveTimesheet);
 
 app.patch('/api/leaves/:id/approve', approveLeave);
-app.patch('/api/leaves/:id/deny', denyLeave);
 
 app.post('/api/leaves', createLeaveRequest);
 app.patch('/api/leaves/:id/:action', updateLeaveStatus);
@@ -56,6 +55,8 @@ app.get('/api/leave/:id/leave-approval-flow', getLeaveApprovalFlow);
 // Get leaves for a user
 app.get('/api/leaves/:userId', getUserLeaves);
 app.get('/api/leaves', getLeaveRequests);
+
+app.get('/api/leaves-now/', getLeaveRequests2);
 app.get('/api/leaves/role/:userId', getLeaveRequestsByRole);
 
 // Notifications

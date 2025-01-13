@@ -67,6 +67,16 @@ const LeaveManagementComponent: React.FC<LeaveManagementComponentProps> = ({ use
   const [additionalReason, setAdditionalReason] = useState<string>('');
   const [leaveDuration, setLeaveDuration] = useState<number>(0);
   const [expandedLeave, setExpandedLeave] = useState<number | null>(null);
+  const [pending, setPending] = useState(false); // Initialize state
+
+  // Update the 'pending' state based on the condition
+  useEffect(() => {
+    const hasPendingRequest = myLeaveRequests.some(
+      (request) => request.status === "Pending"
+    );
+    setPending(hasPendingRequest); // Set pending to true or false based on the condition
+  }, [myLeaveRequests]); // This runs whenever myLeaveRequests change
+
 
   const toggleExpand = (id: number) => {
     setExpandedLeave((prev) => (prev === id ? null : id));
@@ -351,6 +361,7 @@ const LeaveManagementComponent: React.FC<LeaveManagementComponentProps> = ({ use
             <Button
               onClick={handleRequestNewLeave}
               className="mt-4"
+              disabled={pending}
             >
               Submit Leave Request
             </Button>

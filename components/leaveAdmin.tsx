@@ -21,6 +21,9 @@ interface AdminLeaveManagementComponentProps {
   userLocation: string; // Role of the logged-in user (e.g., "admin", "manager")
 }
 
+
+
+
 const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps> = ({ userId, userRole, userName, userLocation }) => {
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [userNames, setUserNames] = useState<{ [key: number]: string }>({});
@@ -29,28 +32,55 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
   const [expandedLeave, setExpandedLeave] = useState<number | null>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false); // To control the popup state
   const [selectedLeaveId, setSelectedLeaveId] = useState<number | null>(null);
+  const [selectedAction, setSelectedAction] = useState<'approve' | 'denied' | null>(null);
   const [leaveRequests2, setLeaveRequests2] = useState<LeaveRequest[]>([]);
+  const [refetchLeaveRequests, setRefetchLeaveRequests] = useState<boolean>(false); // Refetch trigger state
+// Declare state with the correct typeconst [approvedLeaves, setApprovedLeaves] = useState<LeaveRequest[]>([]);
+const [pendingLeaves, setPendingLeaves] = useState<LeaveRequest[]>([]);
+const [approvedLeaves, setApprovedLeaves] = useState<LeaveRequest[]>([]);
 
+const [rejectedLeaves, setRejectedLeaves] = useState<LeaveRequest[]>([]);
+const [otherLeaves, setOtherLeaves] = useState<LeaveRequest[]>([]);
   useEffect(() => {
     const fetchLeaveRequests = async () => {
       const token = localStorage.getItem("jwtToken");
-      
+      const userData = JSON.parse(localStorage.getItem("userData") ?? '{}');
+      const { id: userId, role: userRole } = userData;
+  
       if (!token) {
         console.error("Token is missing. Please log in.");
         return;
       }
   
       try {
-        const response = await fetch(`http://localhost:3030/api/leaves`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await fetch(
+          `http://localhost:3030/api/leaves-now?userId=${userId}&userRole=${userRole}`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
   
         if (response.ok) {
           const data = await response.json();
-          setLeaveRequests(data.leaveRequests);
+          const leaveRequests: LeaveRequest[] = data.leaveRequests || [];
+  
+          // Now categorize leave requests by status
+          const approvedLeaves = leaveRequests.filter((request) => request.status === "Fully Approved");
+          const pendingLeaves = leaveRequests.filter((request) => request.status !== "Fully Approved");
+          const rejectedLeaves = leaveRequests.filter((request) => request.status === "Denied");
+          const otherLeaves = leaveRequests.filter(
+            (request) => !["Fully Approved", "Pending", "Denied"].includes(request.status)
+          );
+  
+          // Set the categorized leave requests
+          setLeaveRequests(leaveRequests);
+          setApprovedLeaves(approvedLeaves);
+          setPendingLeaves(pendingLeaves);
+          setRejectedLeaves(rejectedLeaves);
+          setOtherLeaves(otherLeaves);
         } else {
           console.error("Failed to fetch leave requests.");
         }
@@ -58,7 +88,8 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
         console.error("Error fetching leave requests:", error);
       }
     };
-
+  
+  
     const fetchLeaveRequests2 = async () => {
       const token = localStorage.getItem("jwtToken");
     
@@ -136,49 +167,61 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
     fetchLeaveRequests();
     fetchUserData();
     fetchLeaveRequests2()
-  }, []);
+
+    if (refetchLeaveRequests) {
+      fetchLeaveRequests2(); // Call again when refetchLeaveRequests is true
+      setRefetchLeaveRequests(false); // Reset the refetch state
+    }
+
+  }, [refetchLeaveRequests]);
 
   const handleApprove = async (id: number) => {
     setSelectedLeaveId(id);
+    setSelectedAction('approve');
     setIsConfirmOpen(true);
-  };
+};
 
-  const handleReject = async (id: number) => {
+const handleReject = async (id: number) => {
     setSelectedLeaveId(id);
+    setSelectedAction('denied');
     setIsConfirmOpen(true);
-  };
+};
 
-  const confirmApproval = async (action: 'approve' | 'deny', userId: number) => {
-    try {
+const confirmApproval = async (userId: number) => {
+  if (!selectedAction) return; // Ensure action is set
+
+  try {
       const response = await fetch(
-        `http://localhost:3030/api/leaves/${selectedLeaveId}/${action}?approverId=${userId}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("jwtToken")}`,
-          },
-        }
+          `http://localhost:3030/api/leaves/${selectedLeaveId}/${selectedAction}?approverId=${userId}`,
+          {
+              method: "PATCH",
+              headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${localStorage.getItem("jwtToken")}`,
+              },
+          }
       );
-  
+
       if (response.ok) {
-        setLeaveRequests((prev) =>
-          prev.map((request) =>
-            request.id === selectedLeaveId
-              ? { ...request, status: action === 'approve' ? "Approved" : "Denied" }
-              : request
-          )
-        );
+          setLeaveRequests((prev) =>
+              prev.map((request) =>
+                  request.id === selectedLeaveId
+                      ? { ...request, status: selectedAction === 'approve' ? "Approved" : "Denied" }
+                      : request
+              )
+          );
+          window.location.reload(); // Always reload for both actions
       } else {
-        console.error(`Failed to ${action} leave request.`, await response.json());
+          console.error(`Failed to ${selectedAction} leave request.`, await response.json());
       }
-      setIsConfirmOpen(false);
-    } catch (error) {
+  } catch (error) {
       console.error("Error updating leave request:", error);
+  } finally {
       setIsConfirmOpen(false);
-    }
-  };
-  
+      setSelectedAction(null); // Reset action after completion
+  }
+};
+
 
   const formatDate = (date: string) => {
     return new Intl.DateTimeFormat("en-US", {
@@ -193,23 +236,6 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
   };
 
  
-  const allowedRoles = ["admin", "HR", "PADM", "INCHARGE", "PO"];
-
-  const filteredLeaves = leaveRequests.filter((request) => {
-    // If the user is an admin, or their role is one of the allowed roles, or they are a manager of the user
-    return (
-      allowedRoles.includes(userRole) || 
-      userManagers[request.userId] === userName
-    );
-  });
-
-  const approvedLeaves = filteredLeaves.filter((request) => request.status === "Fully Approved");
-  const pendingLeaves = filteredLeaves.filter((request) => request.status !== "Fully Approved");
-  const rejectedLeaves = filteredLeaves.filter((request) => request.status === "Denied");
-  const otherLeaves = filteredLeaves.filter(
-    (request) => !["Approved", "Pending", "Denied"].includes(request.status)
-  );
-  
 
 
 
@@ -499,23 +525,29 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
 
       {/* Confirmation Dialog */}
       <Dialog.Root open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-        <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50" />
-        <Dialog.Content className="p-6 bg-white rounded-lg shadow-lg fixed inset-1/4 left-1/4 w-1/2 z-50">
-          <Dialog.Title className="text-xl font-bold mb-4">Confirm Action</Dialog.Title>
-          <p>Are you sure you want to approve/reject this leave request?</p>
-          <div className="flex justify-end gap-2 mt-4">
-            <Button onClick={() => confirmApproval("approve", userId)} className="bg-green-500">
-              Yes, Approve
-            </Button>
-            <Button onClick={() => confirmApproval("deny", userId)} className="bg-red-500">
-              Yes, Reject
-            </Button>
+    <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50" />
+    <Dialog.Content className="p-6 bg-white rounded-lg shadow-lg fixed inset-1/4 left-1/4 w-1/2 z-50">
+        <Dialog.Title className="text-xl font-bold mb-4">Confirm Action</Dialog.Title>
+        <p>Are you sure you want to {selectedAction === "approve" ? "approve" : "reject"} this leave request?</p>
+        
+        <div className="flex justify-end gap-2 mt-4">
+            {selectedAction === "approve" && (
+                <Button onClick={() => confirmApproval(userId)} className="bg-green-500">
+                    Yes, Approve
+                </Button>
+            )}
+            {selectedAction === "denied" && (
+                <Button onClick={() => confirmApproval(userId)} className="bg-red-500">
+                    Yes, Reject
+                </Button>
+            )}
             <Button onClick={() => setIsConfirmOpen(false)} className="bg-gray-500">
-              Cancel
+                Cancel
             </Button>
-          </div>
-        </Dialog.Content>
-      </Dialog.Root>
+        </div>
+    </Dialog.Content>
+</Dialog.Root>
+
     </>
   );
 };
