@@ -207,6 +207,7 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
   
       if (response.ok) {
         const data = await response.json();
+        window.location.reload(); // Always reload for both actions
         console.log("Timesheet submitted:", data);
         alert("Timesheet submitted successfully!");
       } else {

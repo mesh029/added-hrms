@@ -380,6 +380,258 @@ export const getTimesheetForApprovers = async (req, res) => {
       res.status(500).json({ error: "Internal server error." });
     }
   };
+
+  export const getTimesheetForApprovers2 = async (req, res) => {
+    const { userId } = req.query; // Get userId from query parameters
+  
+    if (!userId) {
+        return res.status(400).json({ error: "Missing userId parameter." });
+    }
+  
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: parseInt(userId) },
+            select: {
+                id: true,
+                name: true,
+                role: true,
+                location: true,
+                reportsTo: true
+            },
+        });
+  
+        if (!user) {
+            return res.status(404).json({ error: "User not found." });
+        }
+  
+        const { role, location, reportsTo, name } = user;
+  
+        // Fetch all users
+        const allUsers = await prisma.user.findMany();
+  
+        // Fetch all timesheets with user and approval details
+        let timesheets = await prisma.timesheet.findMany({
+            include: {
+                approvals: true,
+                user: true,
+            },
+        });
+  
+        // Map timesheets to their associated users
+        timesheets = timesheets.map(timesheet => {
+            const associatedUser = allUsers.find(u => u.id === timesheet.userId);
+            return { ...timesheet, user: associatedUser };
+        });
+  
+        // 🎯 Role-based filtering logic
+
+        // ✅ HR: See timesheets approved by PO and in related locations
+        if (role === "HR") {
+            const relatedLocations = {
+                "Kisumu": ["Kisumu", "Kakamega", "Vihiga"],
+                "Nyamira": ["Nyamira", "Kisii", "Migori"],
+                "Kakamega": ["Kisumu", "Kakamega", "Vihiga"],
+            };
+  
+            const possibleLocations = relatedLocations[location] || [location];
+  
+            timesheets = timesheets.filter(timesheet => {
+                const isApprovedByPO = timesheet.status === "Approved by: PO";
+                const isApprovedByPOApproval = timesheet.approvals.some(approval => approval.approverRole === "PO");
+                const isInRelatedLocation = possibleLocations.includes(timesheet.user.location);
+                return isApprovedByPO && isApprovedByPOApproval && isInRelatedLocation;
+            });
+        }
+  
+        // ✅ INCHARGE: See timesheets pending from subordinates
+        else if (role === "INCHARGE") {
+            timesheets = timesheets.filter(timesheet =>
+                timesheet.user.reportsTo === name && timesheet.status === "Ready"
+            );
+        }
+  
+        // ✅ PO: See timesheets approved by INCHARGE
+        else if (role === "PO") {
+            timesheets = await Promise.all(
+                timesheets.map(async (timesheet) => {
+                    const relevantInchargeApproval = await Promise.all(
+                        timesheet.approvals.map(async (approval) => {
+                            if (approval.approverRole === "INCHARGE") {
+                                const facilityIncharge = await prisma.user.findUnique({
+                                    where: { name: approval.approverName },
+                                    select: { reportsTo: true },
+                                });
+                                if (facilityIncharge?.reportsTo === name && timesheet.status === "Approved by: INCHARGE") {
+                                    return timesheet;
+                                }
+                            }
+                            return null;
+                        })
+                    );
+                    return relevantInchargeApproval.find(Boolean);
+                })
+            );
+            timesheets = timesheets.filter(Boolean);
+        }
+  
+        // ✅ PADM: See timesheets approved by HR
+        else if (role === "PADM") {
+            timesheets = timesheets.filter(timesheet => {
+                const hrApproval = timesheet.approvals.find(
+                    approval => approval.approverRole === "HR" && approval.status === "Approved"
+                );
+                return hrApproval && timesheet.status === "Approved by: HR";
+            });
+        }
+  
+        // If no matching timesheets found
+        if (!timesheets.length) {
+            return res.status(404).json({ error: "No timesheets found for this role." });
+        }
+  
+        res.status(200).json(timesheets);
+    } catch (error) {
+        console.error("Error fetching timesheets:", error);
+        res.status(500).json({ error: "Internal server error." });
+    }
+};
+
+
+export const getTimesheetForApprovers3 = async (req, res) => {
+  const { userId } = req.query;
+
+  if (!userId) {
+      return res.status(400).json({ error: "Missing userId parameter." });
+  }
+
+  try {
+      const user = await prisma.user.findUnique({
+          where: { id: parseInt(userId) },
+          select: {
+              id: true,
+              name: true,
+              role: true,
+              location: true,
+              reportsTo: true
+          },
+      });
+
+      if (!user) {
+          return res.status(404).json({ error: "User not found." });
+      }
+
+      const { role, location, reportsTo, name } = user;
+
+      // Fetch all users and timesheets with approval and user details
+      const allUsers = await prisma.user.findMany();
+      let timesheets = await prisma.timesheet.findMany({
+          include: {
+              approvals: true,
+              user: true,
+          },
+      });
+
+      // Map timesheets to their associated users
+      timesheets = timesheets.map(timesheet => {
+          const associatedUser = allUsers.find(u => u.id === timesheet.userId);
+          return { ...timesheet, user: associatedUser };
+      });
+
+      // ✅ Helper function for role-based filtering
+      const filterTimesheetsByRole = async (timesheets) => {
+          if (role === "HR") {
+              const relatedLocations = {
+                  "Kisumu": ["Kisumu", "Kakamega", "Vihiga"],
+                  "Nyamira": ["Nyamira", "Kisii", "Migori"],
+                  "Kakamega": ["Kisumu", "Kakamega", "Vihiga"],
+              };
+              const possibleLocations = relatedLocations[location] || [location];
+              return timesheets.filter(timesheet =>
+                  possibleLocations.includes(timesheet.user.location)
+              );
+          } 
+          else if (role === "INCHARGE") {
+              return timesheets.filter(
+                  timesheet => timesheet.user.reportsTo === name
+              );
+          } 
+          else if (role === "PO") {
+              // ✅ Adjusted PO Filtering Logic
+              timesheets = await Promise.all(
+                  timesheets.map(async (timesheet) => {
+                      const relevantInchargeApproval = await Promise.all(
+                          timesheet.approvals.map(async (approval) => {
+                              if (approval.approverRole === "INCHARGE") {
+                                  const facilityIncharge = await prisma.user.findUnique({
+                                      where: { name: approval.approverName },
+                                      select: { reportsTo: true },
+                                  });
+                                  if (facilityIncharge?.reportsTo === name) {
+                                      return timesheet;
+                                  }
+                              }
+                              return null;
+                          })
+                      );
+                      return relevantInchargeApproval.find(Boolean);
+                  })
+              );
+              return timesheets.filter(Boolean); // Remove null results
+          } 
+          else if (role === "PADM") {
+              return timesheets.filter(timesheet =>
+                  timesheet.approvals.some(approval =>
+                      approval.approverRole === "HR" && approval.status === "Approved"
+                  )
+              );
+          }
+          return timesheets;
+      };
+
+      // ✅ Apply role-based filtering
+      let roleBasedTimesheets = await filterTimesheetsByRole(timesheets);
+
+      // ✅ Pending Timesheets (role-specific logic)
+      let pendingTimesheets = roleBasedTimesheets.filter((timesheet) => {
+          if (role === "INCHARGE") {
+              return timesheet.status === "Ready";
+          } else if (role === "PO") {
+            return timesheet.status === "Approved by: INCHARGE";
+
+          } else if (role === "HR") {
+            return timesheet.status === "Approved by: PO";
+
+          } else if (role === "PADM") {
+            return timesheet.status === "Approved by: HR";
+
+          }
+          return false;
+      }).map(timesheet => ({ ...timesheet, label: "Pending" }));
+
+      // ✅ Fully Approved Timesheets
+      let fullyApprovedTimesheets = roleBasedTimesheets.filter(
+          (timesheet) => timesheet.status === "Fully Approved"
+      ).map(timesheet => ({ ...timesheet, label: "Fully Approved" }));
+
+      // ✅ Rejected Timesheets
+      let rejectedTimesheets = roleBasedTimesheets.filter(
+          (timesheet) => timesheet.status === "Rejected"
+      ).map(timesheet => ({ ...timesheet, label: "Rejected" }));
+
+      // ✅ Return categorized timesheets
+      res.status(200).json({
+          roleBasedTimesheets,     // All timesheets relevant to the user's role
+          pendingTimesheets,       // Timesheets needing approval from the user
+          fullyApprovedTimesheets, // Completed timesheets
+          rejectedTimesheets       // Rejected timesheets (filtered by role)
+      });
+
+  } catch (error) {
+      console.error("Error fetching timesheets:", error);
+      res.status(500).json({ error: "Internal server error." });
+  }
+};
+
   
   
   
@@ -586,99 +838,158 @@ export const getTimesheetEntry= async (req, res) => {
 
 
 export const approveTimesheet = async (req, res) => {
-    const { id: timesheetId } = req.params; // Get timesheet ID from URL parameter
-    const { approverId } = req.query; // Get approver ID from query parameters
-  
-    if (!timesheetId || !approverId) {
+  const { id: timesheetId } = req.params;
+  const { approverId } = req.query;
+
+  if (!timesheetId || !approverId) {
       return res.status(400).json({ error: "Missing timesheetId or approverId parameter." });
-    }
-  
-    try {
-      // Find the approver details
+  }
+
+  try {
       const approver = await prisma.user.findUnique({ where: { id: parseInt(approverId) } });
-  
       if (!approver) {
-        return res.status(404).json({ error: "Approver not found." });
+          return res.status(404).json({ error: "Approver not found." });
       }
-  
-      const approvalOrder = ["INCHARGE", "PO", "HR", "PADM"]; // Approval hierarchy
+
+      const approvalOrder = ["INCHARGE", "PO", "HR", "PADM"];
       const approverIndex = approvalOrder.indexOf(approver.role);
-  
+
       if (approverIndex === -1) {
-        return res.status(403).json({ error: "Invalid approver role." });
+          return res.status(403).json({ error: "Invalid approver role." });
       }
-  
-      // Fetch the timesheet and its approvals
+
       const timesheet = await prisma.timesheet.findUnique({
-        where: { id: parseInt(timesheetId) },
-        include: { approvals: true },
+          where: { id: parseInt(timesheetId) },
+          include: { approvals: true, user: true },
       });
-  
+
       if (!timesheet) {
-        return res.status(404).json({ error: "Timesheet not found." });
+          return res.status(404).json({ error: "Timesheet not found." });
       }
-  
-      // Check if the previous approver has approved (if applicable)
+
+      const requestingUserName = timesheet.user.name;
+
+      // Check previous approval
       if (approverIndex > 0) {
-        const previousRole = approvalOrder[approverIndex - 1];
-        const previousApproval = timesheet.approvals.find(
-          (approval) => approval.approverRole === previousRole && approval.status === "Approved"
-        );
-  
-        if (!previousApproval) {
-          return res.status(403).json({
-            error: `Cannot approve. Waiting for approval from ${previousRole}.`,
-          });
-        }
+          const previousRole = approvalOrder[approverIndex - 1];
+          const previousApproval = timesheet.approvals.find(
+              (approval) => approval.approverRole === previousRole && approval.status === "Approved"
+          );
+
+          if (!previousApproval) {
+              return res.status(403).json({
+                  error: `Cannot approve. Waiting for approval from ${previousRole}.`,
+              });
+          }
       }
-  
-      // Add the approval to the database
+
+      // Register approval
       await prisma.approval.create({
-        data: {
-          timesheetId: parseInt(timesheetId),
-          approverId: parseInt(approverId),
-          approverRole: approver.role,
-          approverName: approver.name,
-          signature: approver.title, // Assuming signature is derived from the title or stored in the user model
-          status: "Approved",
-        },
+          data: {
+              timesheetId: parseInt(timesheetId),
+              approverId: parseInt(approverId),
+              approverRole: approver.role,
+              approverName: approver.name,
+              signature: approver.title,
+              status: "Approved",
+          },
       });
-  
-      // Fetch all approvals for the current timesheet
+
       const approvals = await prisma.approval.findMany({ where: { timesheetId: parseInt(timesheetId) } });
-  
-      // Construct the approvers data with name, role, and title
-      const approversDetails = approvals.map((approval) => ({
-        name: approval.approverName,
-        role: approval.approverRole,
-        title: approval.signature, // Assuming `signature` is a field in the approval model
+      const approversDetails = approvals.map(approval => ({
+          name: approval.approverName,
+          role: approval.approverRole,
+          title: approval.signature,
       }));
-  
-      // Update the timesheet's approvers details
+
       await prisma.timesheet.update({
-        where: { id: parseInt(timesheetId) },
-        data: { approvers: approversDetails },
+          where: { id: parseInt(timesheetId) },
+          data: { approvers: approversDetails },
       });
-  
-      // Check if all approvals are complete
+
       const allApproved = approvalOrder.every((role) =>
-        approvals.some((approval) => approval.approverRole === role && approval.status === "Approved")
+          approvals.some((approval) => approval.approverRole === role && approval.status === "Approved")
       );
-  
-      // Update the timesheet status
+
       const status = allApproved ? "Fully Approved" : `Approved by: ${approver.role}`;
       await prisma.timesheet.update({
-        where: { id: parseInt(timesheetId) },
-        data: { status },
+          where: { id: parseInt(timesheetId) },
+          data: { status },
       });
-  
+
+      // Notify the timesheet submitter
+      await prisma.notification.create({
+          data: {
+              recipientId: timesheet.user.id,
+              message: `Your timesheet (ID: ${timesheetId}) has been approved by ${approver.role}.`,
+              timesheetId: parseInt(timesheetId),
+          },
+      });
+
+            // Define the related locations map
+            const relatedLocations = {
+              "Kisumu": ["Kisumu", "Kakamega", "Vihiga"],
+              "Nyamira": ["Nyamira", "Kisii", "Migori"],
+              "Kakamega": ["Kisumu", "Kakamega", "Vihiga"],
+              // Add other locations and their related locations here
+          };
+    
+
+      // Determine the next approver
+      let nextRole, nextApprover;
+      if (approver.role === "INCHARGE") {
+          nextRole = "PO";
+          nextApprover = await prisma.user.findFirst({
+              where: { role: nextRole, name: approver.reportsTo },
+          });
+      } else if (approver.role === "PO") {
+          nextRole = "HR";
+
+          const approverLocation = timesheet.user.location;
+          const validLocations = relatedLocations[approverLocation] || [];
+          
+          nextApprover = await prisma.user.findFirst({
+            where: {
+                role: nextRole,
+                location: { in: validLocations }, // Check if HR's location is in the valid locations list
+            },
+        });
+      } else if (approver.role === "HR") {
+          nextRole = "PADM";
+
+          nextApprover = await prisma.user.findFirst({ where: { role: nextRole } });
+      }
+
+      if (nextApprover) {
+          await prisma.notification.create({
+              data: {
+                  recipientId: nextApprover.id,
+                  message: `Timesheet from ${requestingUserName} (ID: ${timesheetId}) is awaiting your approval as ${nextRole}.`,
+                  timesheetId: parseInt(timesheetId),
+              },
+          });
+      }
+
+      if (allApproved) {
+          const recipients = [...approvals.map(a => a.approverId), timesheet.user.id];
+          for (const recipientId of recipients) {
+              await prisma.notification.create({
+                  data: {
+                      recipientId,
+                      message: `Timesheet from ${requestingUserName} (ID: ${timesheetId}) has been fully approved.`,
+                      timesheetId: parseInt(timesheetId),
+                  },
+              });
+          }
+      }
+
       res.status(200).json({ message: "Timesheet approved successfully." });
-    } catch (error) {
+  } catch (error) {
       console.error("Error approving timesheet:", error);
       res.status(500).json({ error: "Internal server error." });
-    }
-  };
-  
+  }
+};
+
   export const rejectTimesheet = async (req, res) => {
     const { id: timesheetId } = req.params;
     const { reason } = req.body;
@@ -812,6 +1123,84 @@ export const getLeaveRequests2 = async (req, res) => {
     res.status(500).json({ error: "Failed to retrieve leave requests." });
   }
 };
+
+export const getTimesheetsRequest = async (req, res) => {
+  try {
+    const { userId, userRole } = req.query;
+
+    console.log("Received userId:", userId);
+    console.log("Received userRole:", userRole);
+
+    if (!userId || !userRole) {
+      return res.status(400).json({ error: "User ID and role are required." });
+    }
+
+    let timesheets = [];
+
+    // Parse userId to integer
+    const parsedUserId = parseInt(userId, 10);
+
+    if (isNaN(parsedUserId)) {
+      return res.status(400).json({ error: "Invalid User ID." });
+    }
+
+    // Fetch the user to get their name and other details
+    const user = await prisma.user.findUnique({
+      where: { id: parsedUserId },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const userName = user.name; // For INCHARGE or PO role filtering
+
+    // Fetch all timesheets first
+    const allTimesheets = await prisma.timesheet.findMany({
+      include: {
+        user: true, // Including the related user data with each timesheet
+      },
+    });
+
+    // Now filter the timesheets based on the user's role
+    if (userRole === "INCHARGE") {
+      timesheets = allTimesheets.filter(
+        (timesheet) => timesheet.user.reportsTo === userName
+      );
+    } else if (userRole === "PO") {
+      const inchargeUsers = await prisma.user.findMany({
+        where: { reportsTo: userName, role: "INCHARGE" },
+      });
+
+      const inchargeNames = inchargeUsers.map((user) => user.name);
+
+      timesheets = allTimesheets.filter((timesheet) =>
+        inchargeNames.includes(timesheet.user.reportsTo)
+      );
+    } else if (userRole === "HR") {
+      const relatedLocations = {
+        Kisumu: ["Kisumu", "Kakamega", "Vihiga"],
+        Nyamira: ["Nyamira", "Kisii", "Migori"],
+        Kakamega: ["Kisumu", "Kakamega", "Vihiga"],
+      };
+
+      const userLocation = user.location;
+      const relatedLocation = relatedLocations[userLocation] || [userLocation];
+
+      timesheets = allTimesheets.filter((timesheet) =>
+        relatedLocation.includes(timesheet.user.location)
+      );
+    } else {
+      return res.status(403).json({ error: "Invalid role." });
+    }
+
+    res.status(200).json({ message: "Timesheets retrieved successfully.", timesheets });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to retrieve timesheets." });
+  }
+};
+
 
 
 
