@@ -537,7 +537,7 @@ export const getTimesheetForApprovers3 = async (req, res) => {
           return { ...timesheet, user: associatedUser };
       });
 
-      // ✅ Helper function for role-based filtering
+      // ✅ Helper function for role-based filtering (Updated with STAFF role)
       const filterTimesheetsByRole = async (timesheets) => {
           if (role === "HR") {
               const relatedLocations = {
@@ -556,7 +556,6 @@ export const getTimesheetForApprovers3 = async (req, res) => {
               );
           } 
           else if (role === "PO") {
-              // ✅ Adjusted PO Filtering Logic
               timesheets = await Promise.all(
                   timesheets.map(async (timesheet) => {
                       const relevantInchargeApproval = await Promise.all(
@@ -576,13 +575,19 @@ export const getTimesheetForApprovers3 = async (req, res) => {
                       return relevantInchargeApproval.find(Boolean);
                   })
               );
-              return timesheets.filter(Boolean); // Remove null results
+              return timesheets.filter(Boolean);
           } 
           else if (role === "PADM") {
               return timesheets.filter(timesheet =>
                   timesheet.approvals.some(approval =>
                       approval.approverRole === "HR" && approval.status === "Approved"
                   )
+              );
+          } 
+          else if (role === "STAFF") {
+              // ✅ STAFF can see their own timesheets only
+              return timesheets.filter(timesheet =>
+                  timesheet.user.id === user.id
               );
           }
           return timesheets;
@@ -596,14 +601,13 @@ export const getTimesheetForApprovers3 = async (req, res) => {
           if (role === "INCHARGE") {
               return timesheet.status === "Ready";
           } else if (role === "PO") {
-            return timesheet.status === "Approved by: INCHARGE";
-
+              return timesheet.status === "Approved by: INCHARGE";
           } else if (role === "HR") {
-            return timesheet.status === "Approved by: PO";
-
+              return timesheet.status === "Approved by: PO";
           } else if (role === "PADM") {
-            return timesheet.status === "Approved by: HR";
-
+              return timesheet.status === "Approved by: HR";
+          } else if (role === "STAFF") {
+              return timesheet.status !== "Fully Approved" && !timesheet.status.startsWith("Rejected by:");
           }
           return false;
       }).map(timesheet => ({ ...timesheet, label: "Pending" }));
@@ -613,9 +617,9 @@ export const getTimesheetForApprovers3 = async (req, res) => {
           (timesheet) => timesheet.status === "Fully Approved"
       ).map(timesheet => ({ ...timesheet, label: "Fully Approved" }));
 
-      // ✅ Rejected Timesheets
+      // ✅ Rejected Timesheets (Updated logic for status starting with 'Rejected by:')
       let rejectedTimesheets = roleBasedTimesheets.filter(
-          (timesheet) => timesheet.status === "Rejected"
+          (timesheet) => timesheet.status.startsWith("Rejected by:")
       ).map(timesheet => ({ ...timesheet, label: "Rejected" }));
 
       // ✅ Return categorized timesheets
@@ -632,8 +636,146 @@ export const getTimesheetForApprovers3 = async (req, res) => {
   }
 };
 
-  
-  
+export const getLeaveForApproval3 = async (req, res) => {
+  const { userId } = req.query;  // Get the userId from the URL parameter (current user)
+
+  // Validate userId
+  if (!userId) {
+      return res.status(400).json({ error: "Missing userId parameter." });
+  }
+
+  try {
+      const user = await prisma.user.findUnique({
+          where: { id: parseInt(userId) },
+          select: { 
+              id: true, 
+              name: true, 
+              role: true,  
+              location: true, 
+              reportsTo: true 
+          },
+      });
+
+      if (!user) {
+          return res.status(404).json({ error: "User not found." });
+      }
+
+      const { role, location, reportsTo, name } = user;
+
+      // Fetch all users and leave requests with approval and user details
+      const allUsers = await prisma.user.findMany();
+      let leaveRequests = await prisma.leave.findMany({
+          include: {
+              approvals: true,
+              user: true,
+          },
+      });
+
+      // Map the leave requests to their associated users
+      leaveRequests = leaveRequests.map(leave => {
+          const associatedUser = allUsers.find(u => u.id === leave.userId);
+          return { ...leave, user: associatedUser };
+      });
+
+      // ✅ Helper function for role-based filtering
+      const filterLeaveRequestsByRole = async (leaveRequests) => {
+          if (role === "HR") {
+              const relatedLocations = {
+                  "Kisumu": ["Kisumu", "Kakamega", "Vihiga"],
+                  "Nyamira": ["Nyamira", "Kisii", "Migori"],
+                  "Kakamega": ["Kisumu", "Kakamega", "Vihiga"],
+              };
+              const possibleLocations = relatedLocations[location] || [location];
+              return leaveRequests.filter(leave =>
+                  possibleLocations.includes(leave.user.location)
+              );
+          } 
+          else if (role === "INCHARGE") {
+              return leaveRequests.filter(
+                  leave => leave.user.reportsTo === name
+              );
+          } 
+          else if (role === "PO") {
+              leaveRequests = await Promise.all(
+                  leaveRequests.map(async (leave) => {
+                      const relevantInchargeApproval = await Promise.all(
+                          leave.approvals.map(async (approval) => {
+                              if (approval.approverRole === "INCHARGE") {
+                                  const facilityIncharge = await prisma.user.findUnique({
+                                      where: { name: approval.approverName },
+                                      select: { reportsTo: true },
+                                  });
+                                  if (facilityIncharge?.reportsTo === name) {
+                                      return leave;
+                                  }
+                              }
+                              return null;
+                          })
+                      );
+                      return relevantInchargeApproval.find(Boolean);
+                  })
+              );
+              return leaveRequests.filter(Boolean);
+          } 
+          else if (role === "PADM") {
+              return leaveRequests.filter(leave =>
+                  leave.approvals.some(approval =>
+                      approval.approverRole === "HR" && approval.status === "Approved"
+                  )
+              );
+          } 
+          else if (role === "STAFF") {
+              // STAFF can only view their own leave requests
+              return leaveRequests.filter(leave =>
+                  leave.user.id === user.id
+              );
+          }
+          return leaveRequests;
+      };
+
+      // ✅ Apply role-based filtering
+      let roleBasedLeaveRequests = await filterLeaveRequestsByRole(leaveRequests);
+
+      // ✅ Pending Leave Requests
+      let pendingLeaveRequests = roleBasedLeaveRequests.filter((leave) => {
+          if (role === "INCHARGE") {
+              return leave.status === "Pending";
+          } else if (role === "PO") {
+              return leave.status === "Approved by: INCHARGE";
+          } else if (role === "HR") {
+              return leave.status === "Approved by: PO";
+          } else if (role === "PADM") {
+              return leave.status === "Approved by: HR";
+          } else if (role === "STAFF") {
+              return leave.status !== "Fully Approved" && !leave.status.startsWith("Rejected by:");
+          }
+          return false;
+      }).map(leave => ({ ...leave, label: "Pending" }));
+
+      // ✅ Fully Approved Leave Requests
+      let fullyApprovedLeaveRequests = roleBasedLeaveRequests.filter(
+          (leave) => leave.status === "Fully Approved"
+      ).map(leave => ({ ...leave, label: "Fully Approved" }));
+
+      // ✅ Rejected Leave Requests
+      let rejectedLeaveRequests = roleBasedLeaveRequests.filter(
+          (leave) => leave.status.startsWith("Denied")
+      ).map(leave => ({ ...leave, label: "Rejected" }));
+
+      // ✅ Return categorized leave requests
+      res.status(200).json({
+          roleBasedLeaveRequests,    // All leave requests relevant to the user's role
+          pendingLeaveRequests,      // Leave requests needing approval
+          fullyApprovedLeaveRequests, // Completed leave requests
+          rejectedLeaveRequests      // Rejected leave requests
+      });
+
+  } catch (error) {
+      console.error("Error fetching leave requests:", error);
+      res.status(500).json({ error: "Internal server error." });
+  }
+};
+
   
   export const getApprovalFlow = async (req, res) => {
     try {

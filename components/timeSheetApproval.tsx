@@ -234,21 +234,27 @@ const [timesheets, setTimesheets] = useState({
             title="Role-based Timesheets"
             timesheets={timesheets.roleBased}
             userId={userId}
+            userRole= {userRole}
           />
           <TimesheetTable
-            title="Pending Timesheets"
-            timesheets={timesheets.pending}
+  title={userRole !== "STAFF" ? "For Your Action" : "Pending..."}
+  timesheets={timesheets.pending}
             userId={userId}
+            userRole= {userRole}
+
           />
           <TimesheetTable
             title="Fully Approved Timesheets"
             timesheets={timesheets.fullyApproved}
             userId={userId}
+            userRole= {userRole}
+
           />
           <TimesheetTable
             title="Rejected Timesheets"
             timesheets={timesheets.rejected}
             userId={userId}
+            userRole= {userRole}
           />
         </>
       )}

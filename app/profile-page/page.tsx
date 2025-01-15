@@ -29,6 +29,7 @@ import AdminLeaveManagementComponent from '@/components/leaveAdmin';
 import * as XLSX from "xlsx"; // For exporting to Excel
 import TimesheetApprovalComponent from '@/components/timeSheetApproval';
 import AdminTimesheetApprovalComponent from '@/components/adminTimesheetApproval';
+import LeaveApprovalComponent from '@/components/leaveApproval';
 
 const employees = [
   { id: 1, name: 'Alice Johnson', role: 'Software Engineer', department: 'Engineering' },
@@ -565,6 +566,7 @@ const handleUpdateUser = (updatedUser: User) => {
               </TabsContent>
                         
               <TabsContent value="leave">
+                <LeaveApprovalComponent userRole={userMain.role} userId={userMain.id} name={userMain.name} title={userMain.location} />
                 <LeaveManagementComponent userId={userMain.id} isApprover={isAdmin} />
                 {isAdmin && (
                                   <AdminLeaveManagementComponent userRole={userMain.role} userId={userMain.id} userName={userMain.name} userLocation={userMain.location} />

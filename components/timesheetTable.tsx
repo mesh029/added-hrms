@@ -1,10 +1,13 @@
 import React, { useState } from "react";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Circle, Hourglass, XCircle } from "lucide-react";
 import Link from "next/link";
 import ApprovalFlowComponent from "./approvalFlow";
-import { Dialog, DialogActions, DialogContent, DialogTitle, TextField } from '@mui/material';
+import { Card, CardContent, CardHeader, Dialog, DialogActions, DialogContent, DialogTitle, TextField } from '@mui/material';
+import { CardTitle } from "./ui/card";
+
+
 
 
 // Define Timesheet and Props types
@@ -14,7 +17,7 @@ interface Timesheet {
   user: {
     name: string;
   };
-  month: string;
+  month: number;
   year: number;
   status: string;
 }
@@ -23,18 +26,52 @@ interface TimesheetTableProps {
   title: string;
   timesheets: Timesheet[];
   userId: number;
+  userRole: string;
 }
 
 
-const TimesheetTable: React.FC<TimesheetTableProps> = ({ title, timesheets, userId }) => {
+const TimesheetTable: React.FC<TimesheetTableProps> = ({ title, timesheets, userId, userRole }) => {
   const [expandedTimesheet, setExpandedTimesheet] = useState<number | null>(null); // Track the expanded row
   const [rejectReason, setRejectReason] = useState('');
   const [selectedTimesheetId, setSelectedTimesheetId] = useState<number | null>(null);
+    const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
 
   const [openRejectModal, setOpenRejectModal] = useState(false);
   const [openApproveModal, setOpenApproveModal] = useState(false);
 
+  // Function to determine the indicator based on status
+  const getStatusIndicator = (status: string) => {
+    if (status === "Fully Approved") {
+      return <Circle className="text-green-500 w-5 h-5" />;
+    } else if (status.startsWith("Rejected")) {
+      return <XCircle className="text-red-500 w-5 h-5" />;
+    } else {
+      return <Hourglass className="text-yellow-500 w-5 h-5" />;
+    }
+  };
 
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+// Group timesheets by month
+const groupedByMonth = timesheets.reduce((acc, timesheet) => {
+    // Ensure `month` is treated as a number
+    const month: number = timesheet.month; // 1, 2, 3, ..., 12
+    const year: number = timesheet.year;  // Year for the timesheet (e.g., 2025)
+  
+    // Create the label in the format "Month Year"
+    const label = `${monthNames[month - 1]} ${year}`;
+  
+    // Initialize the array for the label if it doesn't exist
+    if (!acc[label]) acc[label] = [];
+  
+    // Push the timesheet into the appropriate month-year group
+    acc[label].push(timesheet);
+  
+    return acc;
+  }, {} as Record<string, Timesheet[]>);
   const handleRejectClick = (id: number) => {
     setSelectedTimesheetId(id);
     setOpenRejectModal(true);
@@ -137,6 +174,9 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({ title, timesheets, user
   
   
 
+  const toggleMonthExpand = (month: string) => {
+    setExpandedMonth((prev) => (prev === month ? null : month));
+};
 
   const toggleExpand = (id: number) => {
     setExpandedTimesheet((prev) => (prev === id ? null : id));
@@ -147,22 +187,46 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({ title, timesheets, user
     <div>
       <h2 className="text-xl font-bold mb-4">{title}</h2>
       <div className="overflow-x-auto mb-6 max-h-72">
-        <Table className="min-w-full">
-          <TableHeader>
-            <TableRow>
-              <TableHead>ID</TableHead>
-              <TableHead>User</TableHead>
-              <TableHead>Month</TableHead>
-              <TableHead>Year</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>View</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-  {timesheets.map((timesheet) => (
-    <React.Fragment key={timesheet.id}>
-      <TableRow>
+
+      <Card>
+            <CardHeader>
+                <CardTitle>{title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+                {Object.entries(groupedByMonth)
+                    .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
+                    .map(([month, monthRequests]) => (
+                        <div key={month} className="mb-6">
+                            {/* Month Header with Expand Button */}
+                            <div 
+                                className="flex justify-between items-center cursor-pointer bg-gray-200 p-3 rounded"
+                                onClick={() => toggleMonthExpand(month)}
+                            >
+                                <h2 className="font-semibold">{month}</h2>
+                                {expandedMonth === month ? <ChevronUp /> : <ChevronDown />}
+                            </div>
+
+                            {/* Table for Expanded Month */}
+                            {expandedMonth === month && (
+                                <Table className="mt-4">
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>User</TableHead>
+                                            <TableHead>Start Date</TableHead>
+                                            <TableHead>End Date</TableHead>
+                                            <TableHead>Reason</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead>Expand</TableHead>
+                                            {userRole !== "STAFF" && title === "Pending" && (
+                                                <TableHead>Actions</TableHead>
+                                            )}
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {monthRequests.map((timesheet) => (
+                                            <React.Fragment key={timesheet.id}>
+                                               <TableRow>
+      <TableCell>{getStatusIndicator(title)}</TableCell>
         <TableCell>{timesheet.id}</TableCell>
         <TableCell>{timesheet.user.name}</TableCell>
         <TableCell>{timesheet.month}</TableCell>
@@ -176,15 +240,24 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({ title, timesheets, user
         </TableCell>
 
         <TableCell>
-
-        <Button onClick={() => handleApproveClick(timesheet.id)}>Approve</Button>
-        <Button variant="destructive" onClick={() => handleRejectClick(timesheet.id)}>Reject</Button>
-        </TableCell>
+                    <Button
+                      variant="ghost"
+                      onClick={() => toggleExpand(timesheet.id)}
+                    >
+                      {expandedTimesheet === timesheet.id ? <ChevronUp /> : <ChevronDown />}
+                    </Button>
+                  </TableCell>
         <TableCell>
-          <Button onClick={() => toggleExpand(timesheet.id)}>
-            {expandedTimesheet === timesheet.id ? <ChevronUp /> : <ChevronDown />}
-          </Button>
-        </TableCell>
+
+  {/* Only show buttons if the user is not STAFF and the title is "Pending" */}
+  {(userRole !== "STAFF" && (title === "Pending Timesheets" || title === "For Your Action")) && (    <>
+      <Button onClick={() => handleApproveClick(timesheet.id)}>Approve</Button>
+      <Button variant="destructive" onClick={() => handleRejectClick(timesheet.id)}>Reject</Button>
+    </>
+  )}
+</TableCell>
+
+
       </TableRow>
 
       {/* Approval Flow */}
@@ -197,11 +270,16 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({ title, timesheets, user
           </TableCell>
         </TableRow>
       )}
-    </React.Fragment>
-  ))}
-</TableBody>
+                                            </React.Fragment>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
+                        </div>
+                    ))}
+            </CardContent>
+            </Card>
 
-        </Table>
       </div>
       <Dialog open={openRejectModal} onClose={() => setOpenRejectModal(false)}>
         <DialogTitle>Reject Timesheet</DialogTitle>
