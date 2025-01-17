@@ -28,17 +28,18 @@ interface LeaveApprovalProps {
 }
 
 const LeaveTable: React.FC<LeaveApprovalProps> = ({ userId, userRole, title, leaveRequests }) => {
-    const [selectedLeaveRequestId, setSelectedLeaveRequestId] = useState<number | null>(null);
     const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
     const [expandedLeave, setExpandedLeave] = useState<number | null>(null);
     const [openApproveModal, setOpenApproveModal] = useState(false);
     const [openRejectModal, setOpenRejectModal] = useState(false);
     const [rejectReason, setRejectReason] = useState('');
+  const [selectedLeaveId, setSelectedLeaveId] = useState<number | null>(null);
 
     const getStatusIndicator = (status: string) => {
-        if (status === "Approved") return <Circle className="text-green-500 w-5 h-5" />;
-        if (status === "Rejected") return <XCircle className="text-red-500 w-5 h-5" />;
-        return <Hourglass className="text-yellow-500 w-5 h-5" />;
+        if (status === "Fully Approved") return <Circle className="text-green-500 w-5 h-5" />;
+        if (status.startsWith("Rejected") || status.startsWith("Denied")) {
+            return <XCircle className="text-red-500 w-5 h-5" />;
+          }        return <Hourglass className="text-yellow-500 w-5 h-5" />;
     };
 
     // Group leave requests by month
@@ -57,30 +58,108 @@ const LeaveTable: React.FC<LeaveApprovalProps> = ({ userId, userRole, title, lea
         setExpandedLeave((prev) => (prev === id ? null : id));
     };
 
-    const handleApproveClick = (id: number) => {
-        setSelectedLeaveRequestId(id);
-        setOpenApproveModal(true);
-    };
 
     const handleRejectClick = (id: number) => {
-        setSelectedLeaveRequestId(id);
+        setSelectedLeaveId(id);
         setOpenRejectModal(true);
-    };
-
-    const handleApprove = async () => {
-        alert(`Approved leave request ID: ${selectedLeaveRequestId}`);
-        setOpenApproveModal(false);
-    };
-
-    const handleReject = async () => {
-        if (!rejectReason) {
-            alert("Please provide a reason for rejection.");
+      };
+    
+      const handleApproveClick= (id: number) => {
+        setSelectedLeaveId(id);
+        setOpenApproveModal(true);
+      };
+    
+      const handleApprove = async () => {
+      
+        try {
+          const token = localStorage.getItem("jwtToken");
+          if (!token) {
+            console.error("Authentication token is missing.");
             return;
+          }
+    
+          const response = await fetch(
+            `http://localhost:3030/api/leaves/${selectedLeaveId}/approve?approverId=${userId}`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+          if (response.ok) {
+            alert("Leave Request Approved successfully");
+            const updatedTimesheet = await response.json();
+            window.location.reload()
+    
+            console.log("Leave Request approved successfully!");
+          } else {
+            const errorData = await response.json();
+            console.error("Failed to approve timesheet.", errorData);
+          }
+        } catch (error) {
+          console.error("Error approving timesheet:", error);
         }
-        alert(`Rejected leave request ID: ${selectedLeaveRequestId}`);
+        setOpenApproveModal(false);
+    
+      };
+    
+      const handleReject = async () => {
+        if (!selectedLeaveId || !rejectReason) {
+          alert("Please enter a reason for rejection");
+          return;
+        }
+      
+        try {
+          const token = localStorage.getItem("jwtToken");
+          if (!token) {
+            console.error("Authentication token is missing.");
+            return;
+          }
+      
+          const response = await fetch(
+            `http://localhost:3030/api/leaves/${selectedLeaveId}/deny?approverId=${userId}`,
+            {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ reason: rejectReason }), // Send rejection reason
+            }
+          );
+      
+          // Log the raw response text for debugging
+          const rawResponse = await response.text(); // Use text() to capture the raw response
+          console.log("Raw response:", rawResponse);
+      
+          if (response.ok) {
+            alert("Leave rejected successfully");
+            window.location.reload()
+            // Optionally, update the state to reflect the rejection
+            // setTimesheets(...) to remove or update the timesheet from the list
+          } else {
+            // Try to parse JSON if possible, otherwise handle raw response
+            try {
+              const data = JSON.parse(rawResponse);
+              console.error("Failed to reject leave:", data.error || "Unknown error");
+              alert(`Failed to reject timesheet: ${data.error || "Unknown error"}`);
+            } catch (error) {
+              console.error("Error parsing response:", error);
+              alert("Failed to reject timesheet. Server returned invalid response.");
+            }
+          }
+        } catch (error) {
+          console.error("Error rejecting timesheet:", error);
+          alert("An error occurred while rejecting the timesheet.");
+        }
+      
+        // Close modal and reset states
         setOpenRejectModal(false);
         setRejectReason('');
-    };
+      };
+      
 
     return (
         <Card>
@@ -106,6 +185,8 @@ const LeaveTable: React.FC<LeaveApprovalProps> = ({ userId, userRole, title, lea
                                 <Table className="mt-4">
                                     <TableHeader>
                                         <TableRow>
+                                        <TableHead></TableHead>
+
                                             <TableHead>User</TableHead>
                                             <TableHead>Start Date</TableHead>
                                             <TableHead>End Date</TableHead>
@@ -162,31 +243,38 @@ const LeaveTable: React.FC<LeaveApprovalProps> = ({ userId, userRole, title, lea
                     ))}
             </CardContent>
 
-            {/* Approve Modal */}
-            <Dialog open={openApproveModal} onClose={() => setOpenApproveModal(false)}>
-                <DialogTitle>Approve Leave Request</DialogTitle>
-                <DialogActions>
-                    <Button onClick={handleApprove}>Approve</Button>
-                    <Button onClick={() => setOpenApproveModal(false)}>Cancel</Button>
-                </DialogActions>
-            </Dialog>
-
-            {/* Reject Modal */}
-            <Dialog open={openRejectModal} onClose={() => setOpenRejectModal(false)}>
-                <DialogTitle>Reject Leave Request</DialogTitle>
-                <DialogContent>
-                    <TextField
-                        label="Rejection Reason"
-                        value={rejectReason}
-                        onChange={(e) => setRejectReason(e.target.value)}
-                        fullWidth
-                    />
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleReject}>Reject</Button>
-                    <Button onClick={() => setOpenRejectModal(false)}>Cancel</Button>
-                </DialogActions>
-            </Dialog>
+      <Dialog open={openRejectModal} onClose={() => setOpenRejectModal(false)}>
+        <DialogTitle>Reject Leave Request</DialogTitle>
+        <DialogContent>
+          <TextField
+            label="Reason for rejection"
+            multiline
+            rows={4}
+            fullWidth
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenRejectModal(false)} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleReject} color="primary">
+            Reject
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog open={openApproveModal} onClose={() => setOpenApproveModal(false)}>
+        <DialogTitle>Confirm Approve Leave Request</DialogTitle>
+        <DialogActions>
+          <Button onClick={() => setOpenApproveModal(false)} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleApprove} color="primary">
+            Approve
+          </Button>
+        </DialogActions>
+      </Dialog>
         </Card>
     );
 };

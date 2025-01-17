@@ -523,30 +523,6 @@ const confirmApproval = async (userId: number) => {
 
 
 
-      {/* Confirmation Dialog */}
-      <Dialog.Root open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-    <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50" />
-    <Dialog.Content className="p-6 bg-white rounded-lg shadow-lg fixed inset-1/4 left-1/4 w-1/2 z-50">
-        <Dialog.Title className="text-xl font-bold mb-4">Confirm Action</Dialog.Title>
-        <p>Are you sure you want to {selectedAction === "approve" ? "approve" : "reject"} this leave request?</p>
-        
-        <div className="flex justify-end gap-2 mt-4">
-            {selectedAction === "approve" && (
-                <Button onClick={() => confirmApproval(userId)} className="bg-green-500">
-                    Yes, Approve
-                </Button>
-            )}
-            {selectedAction === "denied" && (
-                <Button onClick={() => confirmApproval(userId)} className="bg-red-500">
-                    Yes, Reject
-                </Button>
-            )}
-            <Button onClick={() => setIsConfirmOpen(false)} className="bg-gray-500">
-                Cancel
-            </Button>
-        </div>
-    </Dialog.Content>
-</Dialog.Root>
 
     </>
   );

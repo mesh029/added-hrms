@@ -193,7 +193,7 @@ const LeaveManagementComponent: React.FC<LeaveManagementComponentProps> = ({ use
     console.log("Sending payload to endpoint:", payload);
   
     try {
-      const response = await fetch("http://localhost:3030/api/leaves", {
+      const response = await fetch("/api/leave", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -232,19 +232,19 @@ const LeaveManagementComponent: React.FC<LeaveManagementComponentProps> = ({ use
   
   
 
-  // Icon mapping for status
-  const statusIcon = (status: 'Pending' | 'Approved' | 'Denied') => {
-    switch (status) {
-      case 'Approved':
-        return <FaCheckCircle className="text-green-500" />;
-      case 'Denied':
+  const statusIcon = (status: string) => {
+    if (status.startsWith("Rejected") || status === "Denied") {
         return <FaTimesCircle className="text-red-500" />;
-      case 'Pending':
-        return <FaHourglass className="text-yellow-500" />;
-      default:
-        return null;
     }
-  };
+
+    if (status === "Fully Approved") {
+        return <FaCheckCircle className="text-green-500" />;
+    }
+
+    // Default case: Treat anything else as "Pending"
+    return <FaHourglass className="text-yellow-500" />;
+};
+
 
   return (
     <div className="space-y-4">
@@ -253,56 +253,6 @@ const LeaveManagementComponent: React.FC<LeaveManagementComponentProps> = ({ use
           You have a pending leave request. Please wait for approval before submitting another request.
         </div>
       )}
-      <Card>
-        <CardHeader>
-          <CardTitle>My Leave Requests</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table className="min-w-full">
-            <TableHeader>
-              <TableRow>
-                <TableHead></TableHead>
-                <TableHead>Start Date</TableHead>
-                <TableHead>End Date</TableHead>
-                <TableHead>Reason</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Expand</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-  {myLeaveRequests.map((request, index) => (
-    <React.Fragment key={request.id ? request.id : `leave-${index}`}>
-      <TableRow key={request.id ? request.id : `leave-${index}`}>
-        <TableCell className="w-8">
-          {statusIcon(request.status)}
-        </TableCell>
-        <TableCell>{formatDate(request.startDate)}</TableCell>
-        <TableCell>{formatDate(request.endDate)}</TableCell>
-        <TableCell>{request.reason}</TableCell>
-        <TableCell>{request.status}</TableCell>
-        <TableCell>
-          <button onClick={() => toggleExpand(request.id)}>
-            {expandedLeave === request.id ? "⬇️" : "➡️"}
-          </button>
-        </TableCell>
-      </TableRow>
-      {expandedLeave === request.id && (
-        <TableRow>
-          <TableCell colSpan={6}>
-            <div className="p-4 bg-gray-100 rounded">
-              <p><strong>Reason:</strong> {request.reason}</p>
-            </div>
-          </TableCell>
-        </TableRow>
-      )}
-    </React.Fragment>
-  ))}
-</TableBody>
-
-          </Table>
-        </CardContent>
-      </Card>
-
       {/* Form for submitting new leave requests */}
       {!isApprover && (
         <Card>

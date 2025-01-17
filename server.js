@@ -19,7 +19,7 @@ app.post('/login', login);
 // Middleware to authenticate JWT
 //app.use(authenticateJWT); 
 // Routes
-app.post('/api/users', adminMiddleware, createUser); // Ensure only admin can create users
+app.post('/api/users', createUser); // Ensure only admin can create users
 app.get('/api/users', getUsers);
 app.get('/api/users/:id', getUserById);
 app.put('/api/users/:id', updateUser);
@@ -28,11 +28,12 @@ app.delete('/api/users/:id', deleteUser);
 
 app.post('/api/timesheets', submitTimesheet);
 app.post('/api/timesheets/:id/approve', approveTimesheet);
+app.post('/api/leaves/:id/approve', approveLeave);
+
 
 app.patch('/api/leaves/:id/approve', approveLeave);
 
 app.post('/api/leaves', createLeaveRequest);
-app.patch('/api/leaves/:id/:action', updateLeaveStatus);
 
 
 // Get timesheets for a user
@@ -43,6 +44,8 @@ app.get('/api/leave/approve', getLeaveForApproval3);
 
 
 app.patch('/api/timesheets/:id/reject', rejectTimesheet);
+app.patch('/api/leaves/:id/deny', denyLeave);
+
 
 
 

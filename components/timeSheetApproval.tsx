@@ -44,7 +44,8 @@ const [timesheets, setTimesheets] = useState({
   roleBased: [],
   pending: [],
   fullyApproved: [],
-  rejected: []
+  rejected: [],
+  nextApprover: [],
 });
 
   const handleRejectClick = (id: number) => {
@@ -84,7 +85,8 @@ const [timesheets, setTimesheets] = useState({
                 roleBasedTimesheets,
                 pendingTimesheets,
                 fullyApprovedTimesheets,
-                rejectedTimesheets
+                rejectedTimesheets,
+                awaitingNextApproverTimesheets
               } = data;
     
               // Ensure data is in the format your table expects
@@ -92,7 +94,8 @@ const [timesheets, setTimesheets] = useState({
                 roleBased: roleBasedTimesheets || [],
                 pending: pendingTimesheets || [],
                 fullyApproved: fullyApprovedTimesheets || [],
-                rejected: rejectedTimesheets || []
+                rejected: rejectedTimesheets || [],
+                nextApprover: awaitingNextApproverTimesheets || [],
               });
               setLoading(false);
             } else {
@@ -243,8 +246,15 @@ const [timesheets, setTimesheets] = useState({
             userRole= {userRole}
 
           />
+              <TimesheetTable
+            title="Awaiting Next Approver"
+            timesheets={timesheets.nextApprover}
+            userId={userId}
+            userRole= {userRole}
+
+          />
           <TimesheetTable
-            title="Fully Approved Timesheets"
+            title="Fully Approved"
             timesheets={timesheets.fullyApproved}
             userId={userId}
             userRole= {userRole}

@@ -134,7 +134,7 @@ useEffect(() => {
     })
     .then((data) => {
       setUser(data); // Set the fetched user data
-      const isAdmin = ["admin", "approver", "hr", "incharge", "po", "hr", "padm"].includes(data.role.toLowerCase());
+      const isAdmin = ["admin", "hr", "incharge", "po", "padm"].includes(data.role.toLowerCase());
       setIsAdmin(isAdmin); // Set admin status
 
       // If the user is an admin, fetch the list of all users
@@ -566,12 +566,10 @@ const handleUpdateUser = (updatedUser: User) => {
               </TabsContent>
                         
               <TabsContent value="leave">
-                <LeaveApprovalComponent userRole={userMain.role} userId={userMain.id} name={userMain.name} title={userMain.location} />
-                <LeaveManagementComponent userId={userMain.id} isApprover={isAdmin} />
-                {isAdmin && (
-                                  <AdminLeaveManagementComponent userRole={userMain.role} userId={userMain.id} userName={userMain.name} userLocation={userMain.location} />
+              <LeaveManagementComponent userId={userMain.id} isApprover={isAdmin} />
 
-                )}
+                <LeaveApprovalComponent userRole={userMain.role} userId={userMain.id} name={userMain.name} title={userMain.location} />
+
               </TabsContent>
               {isAdmin && (
                <TabsContent value="timesheetManagement">

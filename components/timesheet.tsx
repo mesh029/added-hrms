@@ -110,7 +110,7 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
       });
     }
   
-    if (type === "Sick") {
+    if (type === "Sick" || "VACA" || "BRV") {
       // Fill leave days with predefined values from leaveDays array
       leaveDays.forEach((leaveDay) => {
         const leaveDayIndex = parseInt(leaveDay.split("-")[2], 10) - 1; // Convert to zero-based index

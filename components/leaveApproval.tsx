@@ -30,7 +30,8 @@ const LeaveApprovalComponent: React.FC<LeaveApprovalProps> = ({ userId, userRole
     roleBased: [],
     pending: [],
     approved: [],
-    rejected: []
+    rejected: [],
+    nextApprover:[],
   });
 
   const [loading, setLoading] = useState(true);
@@ -59,7 +60,7 @@ const LeaveApprovalComponent: React.FC<LeaveApprovalProps> = ({ userId, userRole
       }
 
       try {
-        const response = await fetch(`http://localhost:3030/api/leave/approve?userId=${userId}`, {
+        const response = await fetch(`/api/leave?userId=${userId}`, {
           method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -76,14 +77,16 @@ const LeaveApprovalComponent: React.FC<LeaveApprovalProps> = ({ userId, userRole
               roleBasedLeaveRequests,
               pendingLeaveRequests,
               fullyApprovedLeaveRequests,
-              rejectedLeaveRequests
+              rejectedLeaveRequests,
+              awaitingNextApprover,
             } = data;
 
             setLeaveRequests({
               roleBased: roleBasedLeaveRequests || [],
               pending: pendingLeaveRequests || [],
               approved: fullyApprovedLeaveRequests || [],
-              rejected: rejectedLeaveRequests || []
+              rejected: rejectedLeaveRequests || [],
+              nextApprover: awaitingNextApprover || [],
             });
             setLoading(false);
           } else {
@@ -114,18 +117,24 @@ const LeaveApprovalComponent: React.FC<LeaveApprovalProps> = ({ userId, userRole
             <p>Loading...</p>
           ) : (
             <>
-              <LeaveTable
-                title="Role-based Leave Requests"
-                leaveRequests={leaveRequests.roleBased}
-                userId={userId}
-                userRole={userRole}
-              />
+
+
+
 <LeaveTable
   title={userRole !== "STAFF" ? "For Your Action" : "Pending..."}
   leaveRequests={leaveRequests.pending}
   userId={userId}
   userRole={userRole}
 />
+{userRole !== "STAFF" && (
+  <LeaveTable
+                title="Awaiting Next Approver"
+                leaveRequests={leaveRequests.nextApprover}
+                userId={userId}
+                userRole={userRole}
+              />
+
+)}
 
               <LeaveTable
                 title="Approved Leave Requests"
