@@ -1,26 +1,35 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import UserManagement from './../user/page'
 
-
 export default function UserManagementLanding() {
   const [isNewUser, setIsNewUser] = useState<boolean | null>(null)
+  const [userId, setUserId] = useState<number>(21) // Default user ID
+  const [userData, setUserData] = useState<any>(null)
   const router = useRouter()
 
   const handleNewUser = () => {
     setIsNewUser(true)
+    setUserData(null) // Clear data for new user
   }
 
-  const handleExistingUser = () => {
+  const handleExistingUser = async () => {
     setIsNewUser(false)
+    try {
+      const response = await fetch(`/api/users?id=${userId}`)
+      const data = await response.json()
+      setUserData(data)
+    } catch (error) {
+      console.error("Error fetching user data:", error)
+    }
   }
 
   if (isNewUser !== null) {
-    return <UserManagement isNewUser={isNewUser} />
+    return <UserManagement isNewUser={isNewUser} userData={userData} />
   }
 
   return (
@@ -38,4 +47,3 @@ export default function UserManagementLanding() {
     </div>
   )
 }
-

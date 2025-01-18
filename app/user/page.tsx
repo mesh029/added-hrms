@@ -38,7 +38,11 @@ const staffSchema = z.object({
   ...baseSchema,
   hireDate: z.date({ required_error: 'Hire date is required.' }),
   facility: z.string().min(1, { message: 'Facility is required.' }),
-  leaveDays: z.number().min(0, { message: 'Leave days must be a positive number.' }),
+  leaveDays: z
+  .coerce
+  .number()
+  .min(1, { message: "Leave days must be a positive number" }) // Ensure leaveDays is a positive number
+  .int(), // Ensure it is an integer
   weight: z.string().optional(),
   height: z.string().optional(),
   startDate: z.date({ required_error: 'Start date is required.' }),
@@ -81,9 +85,33 @@ const sampleUserData: UserFormData = {
 
 interface UserManagementProps {
   isNewUser: boolean;
+  userData?: UserFormData;  // ✅ Directly using UserFormData type
+
 }
 
-export default function UserManagement({ isNewUser }: UserManagementProps) {
+const initialUserData: UserFormData = {
+    name: '',
+    email: '',
+    phone: '',
+    title: '',
+    role: 'Staff',
+    department: '',
+    location: '',
+    facility: '',
+    hireDate: new Date(),
+    startDate: new Date(),
+    endDate: undefined,
+    address: '',
+    reportsTo: '',
+    leaveDays: 0,
+    weight: '',
+    height: '',
+};
+
+export default function UserManagement({ isNewUser, userData }: UserManagementProps) {
+
+    
+    const [formData, setFormData] = useState<UserFormData>(userData || initialUserData);
   const [isEditing, setIsEditing] = useState(false)
   const [selectedUser, setSelectedUser] = useState<UserFormData | null>(null)
   const [selectedRole, setSelectedRole] = useState<string>('Staff')
@@ -95,7 +123,9 @@ export default function UserManagement({ isNewUser }: UserManagementProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [searchParams, setSearchParams] = useState<URLSearchParams | null>(null);  
   const [userId, setUserId] = useState<string | null>(null)
-
+  const [hasPersonalInfoError, setHasPersonalInfoError] = useState(false);
+  const [hasWorkInfoError, setHasWorkInfoError] = useState(false);
+  const [hasAdditionalInfoError, setHasAdditionalInfoError] = useState(false);
 
   const form = useForm<UserFormData>({
     resolver: zodResolver(
@@ -120,6 +150,27 @@ export default function UserManagement({ isNewUser }: UserManagementProps) {
     },
   })
 
+  const { formState: { errors } } = form;
+
+  // Check for errors in each section based on the active schema
+  useEffect(() => {
+    // Personal Info error detection
+    setHasPersonalInfoError(
+      !!errors.name || !!errors.email || !!errors.reportsTo
+    );
+  
+    // Work Info error detection
+    setHasWorkInfoError(
+      !!errors.title || !!errors.role || !!errors.department || !!errors.location
+    );
+  
+    // Additional Info error detection
+    setHasAdditionalInfoError(
+      !!errors.facility || !!errors.leaveDays || !!errors.startDate
+    );
+  }, [errors]);  // Re-run this effect whenever `errors` change
+  
+
   const fetchUserData = async (id: string) => {
     try {
       const response = await fetch(`http://localhost:3030/api/users/${id}`)
@@ -127,7 +178,7 @@ export default function UserManagement({ isNewUser }: UserManagementProps) {
       const userData = await response.json()
       form.reset(userData)
          // Explicitly update selectedRole to match the reset value
-         setSelectedRole(userData.role as Role);
+         setSelectedRole(userData.role);
     } catch (error) {
       console.error("Error fetching user data:", error)
       toast({
@@ -154,9 +205,18 @@ export default function UserManagement({ isNewUser }: UserManagementProps) {
     setReportsToOptions(mockReportsToOptions)
   }, [])
 
+
+
+  useEffect(() => {
+    if (userData && !isNewUser) {
+        setFormData(userData);  // ✅ Syncing userData prop with state
+        setIsEditing(true);
+    }
+}, [userData, isNewUser]);
+
   useEffect(() => {
     if (!isNewUser) {
-      form.reset(sampleUserData)
+      form.reset(formData)
     } else {
       form.reset({
         name: '',
@@ -308,11 +368,27 @@ export default function UserManagement({ isNewUser }: UserManagementProps) {
             />
 
             <Tabs defaultValue="personal" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="personal">Personal Info</TabsTrigger>
-                <TabsTrigger value="work">Work Info</TabsTrigger>
-                <TabsTrigger value="additional">Additional Info</TabsTrigger>
-              </TabsList>
+            <TabsList className="grid w-full grid-cols-3">
+  <TabsTrigger
+    value="personal"
+    className={`border-2 ${hasPersonalInfoError ? 'border-red-500' : ''}`}
+  >
+    Personal Info
+  </TabsTrigger>
+  <TabsTrigger
+    value="work"
+    className={`border-2 ${hasWorkInfoError ? 'border-red-500' : ''}`}
+  >
+    Work Info
+  </TabsTrigger>
+  <TabsTrigger
+    value="additional"
+    className={`border-2 ${hasAdditionalInfoError ? 'border-red-500' : ''}`}
+  >
+    Additional Info
+  </TabsTrigger>
+</TabsList>
+
               <TabsContent value="personal" className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
@@ -394,15 +470,17 @@ export default function UserManagement({ isNewUser }: UserManagementProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {selectedRole === 'Staff' && (
                     <>
-                      <FormField
-                        control={form.control}
-                        name="leaveDays"
-                        label="Leave Days"
-                        type="number"
-                        placeholder="20"
-                        icon={CalendarIcon}
-                        disabled={!isEditing && !isNewUser}
-                      />
+<FormField
+  control={form.control}
+  name="leaveDays"
+  label="Leave Days"
+  type="number"
+  placeholder="20"
+  icon={CalendarIcon}
+  disabled={!isEditing && !isNewUser}
+/>
+
+
                       <FormField
                         control={form.control}
                         name="weight"
@@ -473,21 +551,21 @@ export default function UserManagement({ isNewUser }: UserManagementProps) {
               <div>
                 <h3 className="text-lg font-semibold">Personal Information</h3>
                 <div className="mt-2 space-y-2">
-                  <p><span className="font-medium">Name:</span> {sampleUserData.name}</p>
-                  <p><span className="font-medium">Email:</span> {sampleUserData.email}</p>
-                  <p><span className="font-medium">Phone:</span> {sampleUserData.phone}</p>
-                  <p><span className="font-medium">Address:</span> {sampleUserData.address}</p>
+                  <p><span className="font-medium">Name:</span> {formData.name}</p>
+                  <p><span className="font-medium">Email:</span> {formData.email}</p>
+                  <p><span className="font-medium">Phone:</span> {formData.phone}</p>
+                  <p><span className="font-medium">Address:</span> {formData.address}</p>
                 </div>
               </div>
               <div>
                 <h3 className="text-lg font-semibold">Work Information</h3>
                 <div className="mt-2 space-y-2">
-                  <p><span className="font-medium">Role:</span> {sampleUserData.role}</p>
-                  <p><span className="font-medium">Title:</span> {sampleUserData.title}</p>
-                  <p><span className="font-medium">Department:</span> {sampleUserData.department}</p>
-                  <p><span className="font-medium">Location:</span> {sampleUserData.location}</p>
-                  <p><span className="font-medium">Facility:</span> {sampleUserData.facility}</p>
-                  <p><span className="font-medium">Reports To:</span> {sampleUserData.reportsTo}</p>
+                  <p><span className="font-medium">Role:</span> {formData.role}</p>
+                  <p><span className="font-medium">Title:</span> {formData.title}</p>
+                  <p><span className="font-medium">Department:</span> {formData.department}</p>
+                  <p><span className="font-medium">Location:</span> {formData.location}</p>
+                  <p><span className="font-medium">Facility:</span> {formData.facility}</p>
+                  <p><span className="font-medium">Reports To:</span> {formData.reportsTo}</p>
                 </div>
               </div>
             </div>
@@ -495,11 +573,11 @@ export default function UserManagement({ isNewUser }: UserManagementProps) {
               <div>
                 <h3 className="text-lg font-semibold">Additional Information</h3>
                 <div className="mt-2 space-y-2">
-                  <p><span className="font-medium">Hire Date:</span> {format(sampleUserData.hireDate, 'PPP')}</p>
-                  <p><span className="font-medium">Start Date:</span> {format(sampleUserData.startDate, 'PPP')}</p>
-                  <p><span className="font-medium">Leave Days:</span> {sampleUserData.leaveDays}</p>
-                  <p><span className="font-medium">Weight:</span> {sampleUserData.weight} kg</p>
-                  <p><span className="font-medium">Height:</span> {sampleUserData.height} cm</p>
+                  <p><span className="font-medium">Hire Date:</span> {format(formData.hireDate, 'PPP')}</p>
+                  <p><span className="font-medium">Start Date:</span> {format(formData.startDate, 'PPP')}</p>
+                  <p><span className="font-medium">Leave Days:</span> {formData.leaveDays}</p>
+                  <p><span className="font-medium">Weight:</span> {formData.weight} kg</p>
+                  <p><span className="font-medium">Height:</span> {formData.height} cm</p>
                 </div>
               </div>
             )}
@@ -531,14 +609,17 @@ function FormField({ control, name, label, placeholder, icon: Icon, type = 'text
           control={control}
           render={({ field, fieldState: { error } }) => (
             <>
-              <Input
-                id={name}
-                placeholder={placeholder}
-                className={cn('pl-8', Icon && 'pl-8')}
-                type={type}
-                disabled={disabled}
-                {...field}
-              />
+            <Input
+              id={name}
+              placeholder={placeholder}
+              className={cn('pl-8', Icon && 'pl-8')}
+              type={type}
+              disabled={disabled}
+              // Always assign a defined value, handle Date type explicitly
+              value={field.value ? (field.value instanceof Date ? field.value.toISOString() : field.value) : ''}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+            />
               {error && <p className="text-sm text-red-500 mt-1">{error.message}</p>}
             </>
           )}
@@ -571,8 +652,7 @@ function FormSelect({ control, name, label, options, disabled, onValueChange }: 
                 field.onChange(value)
                 onValueChange && onValueChange(value)
               }} 
-              defaultValue={field.value} 
-              disabled={disabled}
+              defaultValue={field.value ? String(field.value) : undefined}  // Ensure the value is a string              disabled={disabled}
             >
               <SelectTrigger>
                 <SelectValue placeholder={`Select ${label.toLowerCase()}`} />
