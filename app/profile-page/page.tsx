@@ -362,20 +362,12 @@ const handleUpdateUser = (updatedUser: User) => {
                   <span>{userMain.reportsTo}</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="font-bold">Pay:</span>
-                  <span>{userMain.pay}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="font-bold">Height:</span>
-                  <span>{userMain.height}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="font-bold">Weight:</span>
-                  <span>{userMain.weight}</span>
-                </div>
-                <div className="flex items-center space-x-2">
                   <span className="font-bold">Address:</span>
                   <span>{userMain.address}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="font-bold">Leave Days:</span>
+                  <span>{userMain.leaveDays}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className="font-bold">Location:</span>
@@ -439,6 +431,8 @@ const handleUpdateUser = (updatedUser: User) => {
   >
     Account Settings
   </TabsTrigger>
+  {!isAdmin && (
+
   <TabsTrigger
     value="timesheet"
     onClick={() => handleTabClick('timesheet')}
@@ -452,6 +446,7 @@ const handleUpdateUser = (updatedUser: User) => {
   >
     Timesheet
   </TabsTrigger>
+  )}
   <TabsTrigger
     value="leave"
     onClick={() => handleTabClick('leave')}

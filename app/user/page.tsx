@@ -19,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useToast } from '@/hooks/use-toast'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useRouter } from 'next/router';
 
 const baseSchema = {
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -48,6 +49,20 @@ const staffSchema = z.object({
   startDate: z.date({ required_error: 'Start date is required.' }),
   endDate: z.date().optional(),
 })
+
+const staffProjectSchema = z.object({
+    ...baseSchema,
+    hireDate: z.date({ required_error: 'Hire date is required.' }),
+    leaveDays: z
+    .coerce
+    .number()
+    .min(1, { message: "Leave days must be a positive number" }) // Ensure leaveDays is a positive number
+    .int(), // Ensure it is an integer
+    weight: z.string().optional(),
+    height: z.string().optional(),
+    startDate: z.date({ required_error: 'Start date is required.' }),
+    endDate: z.date().optional(),
+  })
 
 const inchargeSchema = z.object({
   ...baseSchema,
@@ -98,9 +113,9 @@ type Manager = {
   
 
 const initialUserData: UserFormData = {
-    name: '',
-    email: '',
-    phone: '',
+    name: 'Cillian Murpy',
+    email: 'cmurphy@gmail.com',
+    phone: '0734671234',
     title: 'Nurse',
     role: '',
     department: "HRIO",
@@ -109,12 +124,13 @@ const initialUserData: UserFormData = {
     hireDate: new Date(),
     startDate: new Date(),
     endDate: undefined,
-    address: '',
+    address: '156, Kisumu West',
     reportsTo: '',
     leaveDays: 0,
     weight: '',
     height: '',
 };
+
 
 export default function UserManagement({ isNewUser, userData }: UserManagementProps) {
 
@@ -148,13 +164,15 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
     resolver: zodResolver(
       selectedRole === 'STAFF'
         ? staffSchema
+        :selectedRole == 'STAFF-PROJECT'
+        ? staffProjectSchema
         : selectedRole === 'INCHARGE'
           ? inchargeSchema
           : otherRolesSchema
     ),
     defaultValues: {
-      name: '',
-      email: '',
+      name: 'Cillian Murphy',
+      email: 'cmurphy@gmail.com',
       role: 'STAFF',
       department: department,
       location: location,
@@ -396,6 +414,7 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
         })
   
         alert("USer Created!!!")
+        window.location.reload()
 
   
       } catch (error) {

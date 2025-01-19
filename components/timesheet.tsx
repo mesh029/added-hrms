@@ -24,11 +24,35 @@ interface ParsedEntry {
   description: string;
 }
 
+type Timesheet = {
+  id: number;
+  status: string;
+  userId: number;
+  month: number;
+  year: number;
+  user: {
+    id: number;
+    name: string;
+    location: string;
+    reportsTo: string;
+  };
+  approvals: {
+    approverRole: string;
+    approverName: string;
+    status: string;
+  }[];
+};
+
+
 
 const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isApprover }) => {
 
   const [holidaysAdded, setHolidaysAdded] = useState(false);
   const [leavesAdded, setLeavesAdded] = useState(false);
+  const [pendingTimesheet, setPendingTimesheet] = useState(false);
+  const [approvedTimesheet, setApprovedtimesheet] = useState(false);
+
+  const [approvedMessage, setApprovedMessage] = useState<string | null>(null);
 
 
   const [kenyaHolidays, setKenyaHolidays] = useState<string[]>([]);
@@ -190,7 +214,7 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
     console.log("Parsed Entries:", parsedEntries);
   
     try {
-      const response = await fetch("http://localhost:3030/api/timesheets", {
+      const response = await fetch("/api/timesheet", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -210,6 +234,7 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
         window.location.reload(); // Always reload for both actions
         console.log("Timesheet submitted:", data);
         alert("Timesheet submitted successfully!");
+        window.location.reload()
       } else {
         const errorText = await response.text();
         console.error("Error response:", errorText);
@@ -392,6 +417,82 @@ const addLeaveRow = (leaveRequests: { startDate: string; endDate: string; reason
       leavesAddedRef.current = true; // Set ref to true so it doesn't run again
     }
   }, []);
+
+  useEffect(() => {
+    const fetchTimesheets = async () => {
+      try {
+        const response = await fetch(`/api/timesheet?userId=${userId}`, {
+          method: 'GET',
+        });
+  
+        if (!response.ok) {
+          throw new Error('Failed to fetch timesheets');
+        }
+  
+        const data: { roleBasedTimesheets: Timesheet[] } = await response.json();
+  
+        // Get the current month and year
+        const currentDate = new Date();
+        const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-indexed
+        const currentYear = currentDate.getFullYear();
+  
+        // Map month numbers to names
+        const monthNames = [
+          'January', 'February', 'March', 'April', 'May', 'June', 
+          'July', 'August', 'September', 'October', 'November', 'December',
+        ];
+  
+        let hasPending = false;
+        let alreadyApproved = null;
+        let hasApproved = false;
+  
+        // Check each timesheet's status and month
+        data.roleBasedTimesheets.forEach((timesheet: Timesheet) => {
+          if (timesheet.status !== 'Fully Approved' && !timesheet.status.startsWith('Rejected')) {
+            hasPending = true;
+            setApprovedMessage("You have a pending timesheet and cannot send another for approval at this time.")
+          }
+  
+          if (
+            timesheet.status === 'Fully Approved' &&
+            timesheet.month === currentMonth &&
+            timesheet.year === currentYear
+          ) {
+            hasApproved = true;
+            alreadyApproved = `Your timesheet for ${monthNames[currentMonth - 1]} ${currentYear} has already been approved.`;
+          }
+        });
+  
+        setPendingTimesheet(hasPending);
+        setApprovedtimesheet(hasApproved);
+
+        setApprovedMessage(alreadyApproved);
+      } catch (error) {
+        console.error('Error fetching timesheets:', error);
+      }
+    };
+  
+    fetchTimesheets();
+  }, [userId]);
+  
+
+
+
+
+
+  if (pendingTimesheet) {
+    return(
+      <div style={{ padding: '20px', color: '#FF0000' }}>
+      <strong>{approvedMessage}</strong>
+    </div>
+    ) 
+  }else if (approvedTimesheet){
+    return(
+<div style={{ padding: '20px', color: '#008000' }}>
+<strong>{approvedMessage}</strong>
+    </div>
+    ) 
+  }
   
   return (
     <div className="space-y-4">

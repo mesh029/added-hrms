@@ -91,11 +91,18 @@ export async function GET(req) {
             else if (role === "STAFF") {
                 return leaveRequests.filter(leave => leave.user.id === user.id);
             }
-            return leaveRequests;
+
+            // Return empty array for unrecognized roles
+            return [];
         };
 
         // ✅ Apply role-based filtering
         let roleBasedLeaveRequests = await filterLeaveRequestsByRole(leaveRequests);
+
+        // If no leave requests are returned for an unrecognized role
+        if (roleBasedLeaveRequests.length === 0) {
+            return NextResponse.json({ message: "No leave requests available for this user or unrecognized role." }, { status: 200 });
+        }
 
         // ✅ Pending Leave Requests
         let pendingLeaveRequests = roleBasedLeaveRequests.filter((leave) => {
@@ -142,6 +149,7 @@ export async function GET(req) {
         return NextResponse.json({ error: "Internal server error." }, { status: 500 });
     }
 }
+
 
 // app/api/leave/route.js
 

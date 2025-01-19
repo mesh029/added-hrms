@@ -79,7 +79,7 @@ const LeaveTable: React.FC<LeaveApprovalProps> = ({ userId, userRole, title, lea
           }
     
           const response = await fetch(
-            `http://localhost:3030/api/leaves/${selectedLeaveId}/approve?approverId=${userId}`,
+            `/api/leave/${selectedLeaveId}/approve?approverId=${userId}`,
             {
               method: "POST",
               headers: {
@@ -119,7 +119,7 @@ const LeaveTable: React.FC<LeaveApprovalProps> = ({ userId, userRole, title, lea
           }
       
           const response = await fetch(
-            `http://localhost:3030/api/leaves/${selectedLeaveId}/deny?approverId=${userId}`,
+            `/api/leave/${selectedLeaveId}/reject?approverId=${userId}`,
             {
               method: "PATCH",
               headers: {

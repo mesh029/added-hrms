@@ -68,7 +68,7 @@ const [timesheets, setTimesheets] = useState({
         }
     
         try {
-          const response = await fetch(`http://localhost:3030/api/timesheets/approve?userId=${userId}`, {
+          const response = await fetch(`/api/timesheet?userId=${userId}`, {
             method: "GET",
             headers: {
               Authorization: `Bearer ${token}`,

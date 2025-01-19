@@ -92,7 +92,7 @@ const groupedByMonth = timesheets.reduce((acc, timesheet) => {
       }
 
       const response = await fetch(
-        `http://localhost:3030/api/timesheets/${selectedTimesheetId}/approve?approverId=${userId}`,
+        `/api/timesheet/${selectedTimesheetId}/approve?approverId=${userId}`,
         {
           method: "POST",
           headers: {
@@ -132,7 +132,7 @@ const groupedByMonth = timesheets.reduce((acc, timesheet) => {
       }
   
       const response = await fetch(
-        `http://localhost:3030/api/timesheets/${selectedTimesheetId}/reject?approverId=${userId}`,
+        `/api/timesheet/${selectedTimesheetId}/reject?approverId=${userId}`,
         {
           method: "PATCH",
           headers: {
