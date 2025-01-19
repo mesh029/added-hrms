@@ -19,7 +19,7 @@ app.post('/login', login);
 // Middleware to authenticate JWT
 //app.use(authenticateJWT); 
 // Routes
-app.post('/api/users', createUser); // Ensure only admin can create users
+app.post('/api/users',adminMiddleware, createUser); // Ensure only admin can create users
 app.get('/api/users', getUsers);
 app.get('/api/users/:id', getUserById);
 app.put('/api/users/:id', updateUser);

@@ -58,18 +58,18 @@ const otherRolesSchema = z.object(baseSchema)
 
 type UserFormData = z.infer<typeof staffSchema>
 
-const roles = ['Staff', 'INCHARGE', 'PO', 'HR', 'PADM']
-const departments = ['Engineering', 'Sales', 'Marketing', 'HR', 'Finance']
-const locations = ['New York', 'San Francisco', 'London', 'Tokyo', 'Remote']
-const facilities = ['Main Office', 'Branch A', 'Branch B', 'Factory 1', 'Factory 2']
-const titles = ['Software Engineer', 'Sales Representative', 'Marketing Specialist', 'HR Manager', 'Financial Analyst']
+const roles = ['STAFF','STAFF-PROJECT', 'INCHARGE', 'PO', 'HR', 'PADM']
+const departments = ['M&E', 'HRIO', 'HRH', 'OTHER']
+const locations = ['Kisumu', 'Homabay', 'Kisii', 'Kakamega', 'Vihiga', "Nyamira", "Migori"]
+const facilities = ['Chulaimbo', 'Migosi', 'Nightingale', 'Embulumbulu']
+const titles = ['M&E Officer', 'HR Manager', 'M&E Associate', 'Nurse', 'Lab Specialist']
 
 const sampleUserData: UserFormData = {
   name: 'John Doe',
   email: 'john.doe@example.com',
   phone: '+1234567890',
   title: 'Software Engineer',
-  role: 'Staff',
+  role: 'STAFF',
   department: 'Engineering',
   location: 'New York',
   facility: 'Main Office',
@@ -89,15 +89,23 @@ interface UserManagementProps {
 
 }
 
+type Manager = {
+    id: string;
+    name: string;
+    role: string;
+    // Add other properties if needed
+  };
+  
+
 const initialUserData: UserFormData = {
     name: '',
     email: '',
     phone: '',
-    title: '',
-    role: 'Staff',
-    department: '',
-    location: '',
-    facility: '',
+    title: 'Nurse',
+    role: '',
+    department: "HRIO",
+    location: 'Kisumu',
+    facility: 'Chulaimbo',
     hireDate: new Date(),
     startDate: new Date(),
     endDate: undefined,
@@ -114,7 +122,15 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
     const [formData, setFormData] = useState<UserFormData>(userData || initialUserData);
   const [isEditing, setIsEditing] = useState(false)
   const [selectedUser, setSelectedUser] = useState<UserFormData | null>(null)
-  const [selectedRole, setSelectedRole] = useState<string>('Staff')
+  const [selectedRole, setSelectedRole] = useState<string>('')
+  const [location, setLocation] = useState<string>('')
+  const [title, setTitle] = useState<string>('')
+  const [department, setDepartment] = useState<string>('')
+  const [facility, setFacility] = useState<string>('')
+  const [reportsTo, setReportsTo] = useState<string>('')
+
+
+
   const [reportsToOptions, setReportsToOptions] = useState<string[]>([])
   const { toast } = useToast()
   const [token, setToken] = useState<string | null>(null);  
@@ -126,10 +142,11 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
   const [hasPersonalInfoError, setHasPersonalInfoError] = useState(false);
   const [hasWorkInfoError, setHasWorkInfoError] = useState(false);
   const [hasAdditionalInfoError, setHasAdditionalInfoError] = useState(false);
+  const [managers, setManagers] = useState<Manager[]>([]);
 
   const form = useForm<UserFormData>({
     resolver: zodResolver(
-      selectedRole === 'Staff'
+      selectedRole === 'STAFF'
         ? staffSchema
         : selectedRole === 'INCHARGE'
           ? inchargeSchema
@@ -138,11 +155,11 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
     defaultValues: {
       name: '',
       email: '',
-      role: 'Staff',
-      department: '',
-      location: '',
-      facility: '',
-      title: '',
+      role: 'STAFF',
+      department: department,
+      location: location,
+      facility: facility,
+      title: title,
       reportsTo: '',
       leaveDays: 0,
       startDate: startOfDay(new Date()),
@@ -169,6 +186,18 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
       !!errors.facility || !!errors.leaveDays || !!errors.startDate
     );
   }, [errors]);  // Re-run this effect whenever `errors` change
+  
+  useEffect(() => {
+    setFormData((prevFormData) => ({
+      ...prevFormData,
+      title: title,
+      department: department,
+      location: location,
+      role: selectedRole, // This can be updated as well
+      facility:facility,
+      reportsTo: reportsTo,
+    }));
+  }, [title, department, location, selectedRole, facility, reportsTo]);
   
 
   const fetchUserData = async (id: string) => {
@@ -204,7 +233,60 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
     const mockReportsToOptions = ['John Doe', 'Jane Smith', 'Mike Johnson', 'Emily Brown']
     setReportsToOptions(mockReportsToOptions)
   }, [])
+  useEffect(() => {
+    const token = localStorage.getItem("jwtToken");
+    setToken(token)
 
+
+    if (!token) {
+      setError("No token found");
+      setLoading(false);
+      return;
+    }
+    const fetchManagers = async () => {
+        try {
+          const response = await fetch("/api/users", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          });
+      
+          if (!response.ok) {
+            throw new Error("Failed to fetch users");
+          }
+      
+          const allUsers: Manager[] = await response.json();
+      
+          // Adjust filtering logic based on selected role
+          const filteredManagers = allUsers.filter((user) => {
+            const userRole = user.role.toLowerCase();
+            if (selectedRole === "STAFF") {
+              return userRole === "incharge";
+            } else if (selectedRole === "INCHARGE") {
+              return userRole === "po";
+            } else if (selectedRole === "STAFF-PROJECT") {
+              return userRole === "po";
+            }
+            return false; // Default case for other roles
+          });
+      
+          setManagers(filteredManagers);
+        } catch (err) {
+          if (err instanceof Error) {
+            setError(err.message);
+          } else {
+            setError("An unknown error occurred");
+          }
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      
+
+    fetchManagers();
+  }, [selectedRole]);
 
 
   useEffect(() => {
@@ -221,7 +303,7 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
       form.reset({
         name: '',
         email: '',
-        role: 'Staff',
+        role: 'STAFF',
         department: '',
         location: '',
         facility: '',
@@ -365,6 +447,8 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
               options={roles}
               disabled={!isEditing && !isNewUser}
               onValueChange={(value) => setSelectedRole(value)}
+              value={formData.role}
+
             />
 
             <Tabs defaultValue="personal" className="w-full">
@@ -395,7 +479,7 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
                     control={form.control}
                     name="name"
                     label="Name"
-                    placeholder="John Doe"
+                    placeholder={formData.name}
                     icon={User}
                     disabled={!isEditing && !isNewUser}
                   />
@@ -403,7 +487,7 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
                     control={form.control}
                     name="email"
                     label="Email"
-                    placeholder="john@example.com"
+                    placeholder={formData.email}
                     icon={Mail}
                     disabled={!isEditing && !isNewUser}
                   />
@@ -411,7 +495,7 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
                     control={form.control}
                     name="phone"
                     label="Phone"
-                    placeholder="+1234567890"
+                    placeholder={formData.phone}
                     icon={Phone}
                     disabled={!isEditing && !isNewUser}
                   />
@@ -431,6 +515,9 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
                     label="Department"
                     options={departments}
                     disabled={!isEditing && !isNewUser}
+                    onValueChange={(value) => setDepartment(value)}
+                    value={formData.department}
+
                   />
                   <FormSelect
                     control={form.control}
@@ -438,6 +525,8 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
                     label="Location"
                     options={locations}
                     disabled={!isEditing && !isNewUser}
+                    onValueChange={(value) => setLocation(value)}
+                    value={formData.location}
                   />
                   <FormSelect
                     control={form.control}
@@ -445,78 +534,77 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
                     label="Title"
                     options={titles}
                     disabled={!isEditing && !isNewUser}
+                    onValueChange={(value) => setTitle(value)}
+
+                    value={formData.title}
+
                   />
-                  {(selectedRole === 'Staff' || selectedRole === 'INCHARGE') && (
-                    <FormSelect
-                      control={form.control}
-                      name="facility"
-                      label="Facility"
-                      options={facilities}
-                      disabled={!isEditing && !isNewUser}
-                    />
-                  )}
-                  {selectedRole !== 'PADM' && (
-                    <FormSelect
-                      control={form.control}
-                      name="reportsTo"
-                      label="Reports To"
-                      options={reportsToOptions}
-                      disabled={!isEditing && !isNewUser}
-                    />
-                  )}
+{(selectedRole === 'STAFF' || selectedRole === 'INCHARGE' || selectedRole === 'STAFF-PROJECT') && (
+  <>
+    {/* Facility Select - Only for STAFF and INCHARGE */}
+    {(selectedRole === 'STAFF' || selectedRole === 'INCHARGE') && (
+      <FormSelect
+        control={form.control}
+        name="facility"
+        label="Facility"
+        options={facilities}
+        disabled={!isEditing && !isNewUser}
+        onValueChange={(value) => setFacility(value)}
+        value={formData.facility}
+      />
+    )}
+
+    {/* Reports To Select - For STAFF, INCHARGE, and STAFF-PROJECT */}
+    <FormSelect
+      control={form.control}
+      name="reportsTo"
+      label="Reports To"
+      options={managers.map((manager) => manager.name)} // Extract only the names
+      disabled={!isEditing && !isNewUser}
+      onValueChange={(value) => setReportsTo(value)}
+      value={formData.reportsTo}
+    />
+  </>
+)}
+
+
                 </div>
               </TabsContent>
               <TabsContent value="additional" className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {selectedRole === 'Staff' && (
-                    <>
-<FormField
-  control={form.control}
-  name="leaveDays"
-  label="Leave Days"
-  type="number"
-  placeholder="20"
-  icon={CalendarIcon}
-  disabled={!isEditing && !isNewUser}
-/>
+                {(selectedRole === 'STAFF' || selectedRole === 'STAFF-PROJECT') && (
+  <>
+    <FormField
+      control={form.control}
+      name="leaveDays"
+      label="Leave Days"
+      type="number"
+      placeholder={`${formData.leaveDays}`}
+      icon={CalendarIcon}
+      disabled={!isEditing && !isNewUser}
+    />
 
+    <FormDatePicker
+      control={form.control}
+      name="startDate"
+      label="Start Date"
+      disabled={!isEditing && !isNewUser}
+    />
+    <FormDatePicker
+      control={form.control}
+      name="endDate"
+      label="End Date"
+      disabled={!isEditing && !isNewUser}
+    />
+  </>
+)}
 
-                      <FormField
-                        control={form.control}
-                        name="weight"
-                        label="Weight (kg)"
-                        placeholder="70"
-                        icon={Scale}
-                        disabled={!isEditing && !isNewUser}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="height"
-                        label="Height (cm)"
-                        placeholder="175"
-                        icon={Ruler}
-                        disabled={!isEditing && !isNewUser}
-                      />
-                      <FormDatePicker
-                        control={form.control}
-                        name="startDate"
-                        label="Start Date"
-                        disabled={!isEditing && !isNewUser}
-                      />
-                      <FormDatePicker
-                        control={form.control}
-                        name="endDate"
-                        label="End Date"
-                        disabled={!isEditing && !isNewUser}
-                      />
-                    </>
-                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="address">Address</Label>
                   <Textarea
                     id="address"
-                    placeholder="123 Main St, City, Country"
+                    placeholder={formData.address}
                     className="min-h-[80px]"
                     {...form.register('address')}
                     disabled={!isEditing && !isNewUser}
@@ -569,12 +657,12 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
                 </div>
               </div>
             </div>
-            {sampleUserData.role === 'Staff' && (
+            {formData.role === 'STAFF' && (
               <div>
                 <h3 className="text-lg font-semibold">Additional Information</h3>
                 <div className="mt-2 space-y-2">
                   <p><span className="font-medium">Hire Date:</span> {format(formData.hireDate, 'PPP')}</p>
-                  <p><span className="font-medium">Start Date:</span> {format(formData.startDate, 'PPP')}</p>
+                  <p><span className="font-medium">Start Date:</span> {format(sampleUserData.startDate, 'PPP')}</p>
                   <p><span className="font-medium">Leave Days:</span> {formData.leaveDays}</p>
                   <p><span className="font-medium">Weight:</span> {formData.weight} kg</p>
                   <p><span className="font-medium">Height:</span> {formData.height} cm</p>
@@ -636,9 +724,10 @@ interface FormSelectProps {
   options: string[]
   disabled?: boolean
   onValueChange?: (value: string) => void
+  value: string | number;  // Allow value to be either a string or a number
 }
 
-function FormSelect({ control, name, label, options, disabled, onValueChange }: FormSelectProps) {
+function FormSelect({ control, name, label, options, disabled, value, onValueChange }: FormSelectProps) {
   return (
     <div className="space-y-2">
       <Label htmlFor={name}>{label}</Label>
@@ -652,8 +741,11 @@ function FormSelect({ control, name, label, options, disabled, onValueChange }: 
                 field.onChange(value)
                 onValueChange && onValueChange(value)
               }} 
-              defaultValue={field.value ? String(field.value) : undefined}  // Ensure the value is a string              disabled={disabled}
-            >
+
+              defaultValue={value ? String(value) : undefined} // Ensure the value is a string for defaultValue
+
+
+>
               <SelectTrigger>
                 <SelectValue placeholder={`Select ${label.toLowerCase()}`} />
               </SelectTrigger>
@@ -684,7 +776,7 @@ function FormDatePicker({ control, name, label, disabled }: FormDatePickerProps)
   const { watch } = useForm()
   const role = watch('role')
 
-  if (name === 'hireDate' && role !== 'Staff') {
+  if (name === 'hireDate' && role !== 'STAFF') {
     return null
   }
 
