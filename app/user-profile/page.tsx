@@ -122,7 +122,9 @@ export default function UserProfilePage() {
   const [facilitySearch, setFacilitySearch] = useState("");
   const [locationSearch, setLocationSearch] = useState("");
 
-  const [searchParams, setSearchParams] = useState<URLSearchParams | null>(null);  const [token, setToken] = useState<string | null>(null);  const { toast } = useToast()
+  const [searchParams, setSearchParams] = useState<URLSearchParams | null>(null);  
+  const [token, setToken] = useState<string | null>(null);  
+  const { toast } = useToast()
 
   
   const locations = [

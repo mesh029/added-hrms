@@ -120,12 +120,12 @@ export const getNotifications = async (req, res) => {
 // Update a user
 export const updateUser = async (req, res) => {
     const { id } = req.params;
-    const { name, email, role, department } = req.body;
+    const { name, email, role, department, hireDate, location, endDate, leaveDays, phone } = req.body;
 
     try {
         const updatedUser = await prisma.user.update({
             where: { id: Number(id) },
-            data: { name, email, role, department },
+            data: { name, email, role, department, hireDate, location, endDate, leaveDays, phone },
         });
         res.json(updatedUser);
     } catch (error) {

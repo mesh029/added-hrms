@@ -586,7 +586,7 @@ const handleUpdateUser = (updatedUser: User) => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />          <Button>
-          <Link href={`/user-profile`}>
+          <Link href={`/user`}>
           Add User
           </Link>
 
@@ -637,7 +637,7 @@ const handleUpdateUser = (updatedUser: User) => {
       </div>
       <Badge>{employee.department}</Badge>
       <Button variant="outline" className="ml-2">
-        <Link href={`/user-profile?id=${employee.id}`}>
+        <Link href={`/user?id=${employee.id}`}>
           View {employee.name}'s Profile
         </Link>
       </Button>

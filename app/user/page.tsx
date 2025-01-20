@@ -21,63 +21,76 @@ import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useRouter } from 'next/router';
 
-const baseSchema = {
-  name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
-  email: z.string().email({ message: 'Invalid email address.' }),
-  phone: z.string().optional(),
-  title: z.string().min(1, { message: 'Title is required.' }),
-  role: z.string().min(1, { message: 'Role is required.' }),
-  department: z.string().min(1, { message: 'Department is required.' }),
-  location: z.string().min(1, { message: 'Location is required.' }),
-  hireDate: z.date().optional(),
-  endDate: z.date().optional(),
-  address: z.string().optional(),
-  reportsTo: z.string().min(1, { message: 'Reports To is required.' }),
-}
+const baseSchema = z.object({
+    name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
+    email: z.string().email({ message: 'Invalid email address.' }),
+    phone: z.string().optional(),
+    title: z.string().min(1, { message: 'Title is required.' }),
+    role: z.string().min(1, { message: 'Role is required.' }),
+    department: z.string().min(1, { message: 'Department is required.' }),
+    location: z.string().min(1, { message: 'Location is required.' }),
+    address: z.string().optional(),
 
-const staffSchema = z.object({
-  ...baseSchema,
-  hireDate: z.date({ required_error: 'Hire date is required.' }),
-  facility: z.string().min(1, { message: 'Facility is required.' }),
-  leaveDays: z
-  .coerce
-  .number()
-  .min(1, { message: "Leave days must be a positive number" }) // Ensure leaveDays is a positive number
-  .int(), // Ensure it is an integer
-  weight: z.string().optional(),
-  height: z.string().optional(),
-  startDate: z.date({ required_error: 'Start date is required.' }),
-  endDate: z.date().optional(),
-})
+    hireDate: z.date().optional(),
+    endDate: z.date().nullable().optional(),  // Allow null and undefined    address: z.string().optional(),
+  });
+  
+const staffSchema = baseSchema.extend({
+    hireDate: z.date({ required_error: 'Hire date is required.' }),
+    facility: z.string().min(1, { message: 'Facility is required.' }),
+    leaveDays: z
+      .coerce
+      .number()
+      .min(1, { message: "Leave days must be a positive number" }) // Ensure leaveDays is a positive number
+      .int() // Ensure it is an integer
+      .optional(), // Make it optional
+    weight: z.string().optional(),
+    height: z.string().optional(),
+    startDate: z.date({ required_error: 'Start date is required.' }),
+    endDate: z.date().nullable().optional(),  
+    reportsTo: z.string().min(1, { message: 'Reports To is required.' }),
 
-const staffProjectSchema = z.object({
-    ...baseSchema,
+  
+  });
+    
+  
+
+  const staffProjectSchema = baseSchema.extend({
     hireDate: z.date({ required_error: 'Hire date is required.' }),
     leaveDays: z
     .coerce
     .number()
     .min(1, { message: "Leave days must be a positive number" }) // Ensure leaveDays is a positive number
-    .int(), // Ensure it is an integer
+    .int() // Ensure it is an integer
+    .optional(), // Make it optional// Ensure it is an integer
     weight: z.string().optional(),
     height: z.string().optional(),
     startDate: z.date({ required_error: 'Start date is required.' }),
     endDate: z.date().optional(),
-  })
+    reportsTo: z.string().min(1, { message: 'Reports To is required.' }),
 
-const inchargeSchema = z.object({
-  ...baseSchema,
+  });
+  
+const inchargeSchema = baseSchema.extend({
   facility: z.string().min(1, { message: 'Facility is required.' }),
+  reportsTo: z.string().min(1, { message: 'Reports To is required.' }),
+
 })
 
-const otherRolesSchema = z.object(baseSchema)
+const otherRolesSchema = baseSchema.extend({});
 
-type UserFormData = z.infer<typeof staffSchema>
+type UserFormData = 
+  (z.infer<typeof staffSchema> & 
+   z.infer<typeof staffProjectSchema> & 
+   z.infer<typeof inchargeSchema> & 
+   z.infer<typeof otherRolesSchema>);
+
 
 const roles = ['STAFF','STAFF-PROJECT', 'INCHARGE', 'PO', 'HR', 'PADM']
-const departments = ['M&E', 'HRIO', 'HRH', 'OTHER']
-const locations = ['Kisumu', 'Homabay', 'Kisii', 'Kakamega', 'Vihiga', "Nyamira", "Migori"]
+const departments = ['M&E', 'HR', 'HRIO', 'HRH', 'OTHER']
+const locations = ['Kisumu','London', 'Homabay', 'Kisii', 'Kakamega', 'Vihiga', "Nyamira", "Migori"]
 const facilities = ['Chulaimbo', 'Migosi', 'Nightingale', 'Embulumbulu']
-const titles = ['M&E Officer', 'HR Manager', 'M&E Associate', 'Nurse', 'Lab Specialist']
+const titles = ['M&E Officer','Marketing Specialist', 'HR Manager', 'M&E Associate', 'Nurse', 'Lab Specialist']
 
 const sampleUserData: UserFormData = {
   name: 'John Doe',
@@ -113,28 +126,31 @@ type Manager = {
   
 
 const initialUserData: UserFormData = {
-    name: 'Cillian Murpy',
-    email: 'cmurphy@gmail.com',
-    phone: '0734671234',
-    title: 'Nurse',
+    name: '',
+    email: '',
+    phone: '',
+    title: '',
     role: '',
-    department: "HRIO",
-    location: 'Kisumu',
-    facility: 'Chulaimbo',
+    department: "",
+    location: '',
+    facility: '',
     hireDate: new Date(),
     startDate: new Date(),
     endDate: undefined,
-    address: '156, Kisumu West',
+    address: '',
     reportsTo: '',
     leaveDays: 0,
     weight: '',
     height: '',
 };
 
+type Role = "INCHARGE" | "PADM" | "PO" | "STAFF" | "HR";
 
-export default function UserManagement({ isNewUser, userData }: UserManagementProps) {
 
-    
+export default function UserManagement({userData }: UserManagementProps) {
+
+    const [isNewUser, setNewUser] = useState(true)
+
     const [formData, setFormData] = useState<UserFormData>(userData || initialUserData);
   const [isEditing, setIsEditing] = useState(false)
   const [selectedUser, setSelectedUser] = useState<UserFormData | null>(null)
@@ -144,6 +160,10 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
   const [department, setDepartment] = useState<string>('')
   const [facility, setFacility] = useState<string>('')
   const [reportsTo, setReportsTo] = useState<string>('')
+
+  const [userName, setName] = useState<string>('')
+  const [email, setEmail] = useState<string>('')
+
 
 
 
@@ -164,28 +184,58 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
     resolver: zodResolver(
       selectedRole === 'STAFF'
         ? staffSchema
-        :selectedRole == 'STAFF-PROJECT'
+        : selectedRole === 'STAFF-PROJECT'
         ? staffProjectSchema
         : selectedRole === 'INCHARGE'
-          ? inchargeSchema
-          : otherRolesSchema
+        ? inchargeSchema
+        : otherRolesSchema
     ),
     defaultValues: {
-      name: 'Cillian Murphy',
-      email: 'cmurphy@gmail.com',
-      role: 'STAFF',
-      department: department,
-      location: location,
-      facility: facility,
-      title: title,
-      reportsTo: '',
-      leaveDays: 0,
-      startDate: startOfDay(new Date()),
-      hireDate: startOfDay(new Date()),
-    },
-  })
+        ...initialUserData, // This includes formData values as defaults
+      },
+  });
+  
+  useEffect(() => {
+    if (formData) {
+      form.setValue('endDate', formData.endDate ? new Date(formData.endDate) : undefined);      form.setValue('phone', formData.phone || '');
+      form.setValue('name', formData.name || '');
+      form.setValue('email', formData.email || '');
+      form.setValue('leaveDays', formData.leaveDays ? parseInt(formData.leaveDays.toString(), 10) : undefined);
+      form.setValue('reportsTo', formData.reportsTo || '');
+      setDepartment(formData.department)
+      setTitle(formData.title)
+      setLocation(formData.location)
+      
+
+    }
+  }, [formData]); 
+
 
   const { formState: { errors } } = form;
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      setSearchParams(params);  // Set searchParams when on client-side
+      console.log("params set@!!!!")
+    }
+  }, []);
+
+  useEffect(() => {
+    if (searchParams !== null) {  // Null check to ensure searchParams is available
+      const id = searchParams.get("id");
+      setUserId(id);
+      if (id) {
+        // Start loading data when 'id' is available
+        fetchUserData(id);
+        setNewUser(false)
+
+      } else {
+        // Handle new user logic
+        console.log("User not found or server is not operational.")
+        setLoading(false);
+      }
+    }
+  }, [searchParams]); 
 
   // Check for errors in each section based on the active schema
   useEffect(() => {
@@ -205,27 +255,16 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
     );
   }, [errors]);  // Re-run this effect whenever `errors` change
   
-  useEffect(() => {
-    setFormData((prevFormData) => ({
-      ...prevFormData,
-      title: title,
-      department: department,
-      location: location,
-      role: selectedRole, // This can be updated as well
-      facility:facility,
-      reportsTo: reportsTo,
-    }));
-  }, [title, department, location, selectedRole, facility, reportsTo]);
-  
 
   const fetchUserData = async (id: string) => {
     try {
       const response = await fetch(`http://localhost:3030/api/users/${id}`)
       if (!response.ok) throw new Error("Failed to fetch user data")
       const userData = await response.json()
-      form.reset(userData)
-         // Explicitly update selectedRole to match the reset value
+    setFormData(userData)
+        // Explicitly update selectedRole to match the reset value
          setSelectedRole(userData.role);
+         console.log("user was found", userData)
     } catch (error) {
       console.error("Error fetching user data:", error)
       toast({
@@ -239,6 +278,7 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
   useEffect(() => {
     const token = localStorage.getItem("jwtToken");
     setToken(token)
+    console.log("your token", token)
 
 
     if (!token) {
@@ -307,32 +347,6 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
   }, [selectedRole]);
 
 
-  useEffect(() => {
-    if (userData && !isNewUser) {
-        setFormData(userData);  // ✅ Syncing userData prop with state
-        setIsEditing(true);
-    }
-}, [userData, isNewUser]);
-
-  useEffect(() => {
-    if (!isNewUser) {
-      form.reset(formData)
-    } else {
-      form.reset({
-        name: '',
-        email: '',
-        role: 'STAFF',
-        department: '',
-        location: '',
-        facility: '',
-        title: '',
-        reportsTo: '',
-        leaveDays: 0,
-        startDate: startOfDay(new Date()),
-        hireDate: startOfDay(new Date()),
-      })
-    }
-  }, [isNewUser, form])
 
   useEffect(() => {
     form.setValue('role', selectedRole)
@@ -355,7 +369,7 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
   const onSubmit = async (values: UserFormData) => {
     setIsSubmitting(true)
     try {
-      const response = await fetch(`http://localhost:3030/api/users/${userId}`, {
+      const response = await fetch(`/api/users/${userId}`, {
         method: "PUT",
         headers: {
             "Authorization": `Bearer ${token}`,
@@ -373,7 +387,7 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
         title: "Success",
         description: "User updated successfully",
       })
-      console.log("successfull champ!!!")
+      console.log("successfull champ!!!", values)
     } catch (error) {
       console.error("Error saving user data:", error)
       toast({
@@ -393,7 +407,7 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
       try {
         // For creating a new user, the endpoint should be the "create user" route
         console.log("heres your token", token)
-        const response = await fetch('http://localhost:3030/api/users', {
+        const response = await fetch('/api/users', {
           method: 'POST', // Change to POST for creating a new user
           headers: {
               "Authorization": `Bearer ${token}`,
@@ -433,6 +447,17 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
     setIsEditing(!isEditing)
   }
 
+  const getErrorMessages = () => {
+    const errorMessages: string[] = [];
+    const errorObj = errors as Record<string, any>; // Cast errors to allow dynamic indexing
+    for (const key in errorObj) {
+      if (errorObj[key]) {
+        errorMessages.push(errorObj[key]?.message);
+      }
+    }
+    return errorMessages;
+  };
+  
   return (
     <Card className="w-full max-w-4xl mx-auto">
       <CardHeader>
@@ -498,7 +523,7 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
                     control={form.control}
                     name="name"
                     label="Name"
-                    placeholder={formData.name}
+                    placeholder={"Example Name"}
                     icon={User}
                     disabled={!isEditing && !isNewUser}
                   />
@@ -506,7 +531,7 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
                     control={form.control}
                     name="email"
                     label="Email"
-                    placeholder={formData.email}
+                    placeholder={"Example email"}
                     icon={Mail}
                     disabled={!isEditing && !isNewUser}
                   />
@@ -514,7 +539,7 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
                     control={form.control}
                     name="phone"
                     label="Phone"
-                    placeholder={formData.phone}
+                    placeholder={"+25478921312"}
                     icon={Phone}
                     disabled={!isEditing && !isNewUser}
                   />
@@ -535,7 +560,7 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
                     options={departments}
                     disabled={!isEditing && !isNewUser}
                     onValueChange={(value) => setDepartment(value)}
-                    value={formData.department}
+                    value={department}
 
                   />
                   <FormSelect
@@ -545,7 +570,7 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
                     options={locations}
                     disabled={!isEditing && !isNewUser}
                     onValueChange={(value) => setLocation(value)}
-                    value={formData.location}
+                    value={location}
                   />
                   <FormSelect
                     control={form.control}
@@ -555,7 +580,7 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
                     disabled={!isEditing && !isNewUser}
                     onValueChange={(value) => setTitle(value)}
 
-                    value={formData.title}
+                    value={title}
 
                   />
 {(selectedRole === 'STAFF' || selectedRole === 'INCHARGE' || selectedRole === 'STAFF-PROJECT') && (
@@ -623,7 +648,7 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
                   <Label htmlFor="address">Address</Label>
                   <Textarea
                     id="address"
-                    placeholder={formData.address}
+                    placeholder={"23, Sample Address"}
                     className="min-h-[80px]"
                     {...form.register('address')}
                     disabled={!isEditing && !isNewUser}
@@ -632,16 +657,33 @@ export default function UserManagement({ isNewUser, userData }: UserManagementPr
               </TabsContent>
             </Tabs>
           </CardContent>
+
           <CardFooter>
+            
+            
           {(isEditing || isNewUser) && (
   <Button
     type="submit"
     className="w-full"
+    disabled= {isSubmitting}
     onClick={isNewUser ? form.handleSubmit(onSubmit2) : form.handleSubmit(onSubmit)}
   >
     {isNewUser ? 'Create User' : 'Save Changes'}
   </Button>
 )}
+
+      {/* Error Summary Section */}
+      {Object.keys(errors).length > 0 && (
+        <div className="error-summary">
+          <h3>Form Errors</h3>
+          <ul>
+            {getErrorMessages().map((errorMessage, index) => (
+              <li key={index} className="error">{errorMessage}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
 
           </CardFooter>
         </form>
@@ -705,37 +747,37 @@ interface FormFieldProps {
   disabled?: boolean
 }
 
-function FormField({ control, name, label, placeholder, icon: Icon, type = 'text', disabled }: FormFieldProps) {
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={name}>{label}</Label>
-      <div className="relative">
-        {Icon && <Icon className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />}
-        <Controller
-          name={name}
-          control={control}
-          render={({ field, fieldState: { error } }) => (
-            <>
-            <Input
-              id={name}
-              placeholder={placeholder}
-              className={cn('pl-8', Icon && 'pl-8')}
-              type={type}
-              disabled={disabled}
-              // Always assign a defined value, handle Date type explicitly
-              value={field.value ? (field.value instanceof Date ? field.value.toISOString() : field.value) : ''}
-              onChange={field.onChange}
-              onBlur={field.onBlur}
-            />
-              {error && <p className="text-sm text-red-500 mt-1">{error.message}</p>}
-            </>
-          )}
-        />
+function FormField({ control, name, label, placeholder, icon: Icon, type = 'text', disabled, defaultValue }: FormFieldProps) {
+    return (
+      <div className="space-y-2">
+        <Label htmlFor={name}>{label}</Label>
+        <div className="relative">
+          {Icon && <Icon className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />}
+          <Controller
+            name={name}
+            control={control}
+            defaultValue={defaultValue} // Add defaultValue here
+            render={({ field, fieldState: { error } }) => (
+              <>
+                <Input
+                  id={name}
+                  placeholder={placeholder}
+                  className={cn('pl-8', Icon && 'pl-8')}
+                  type={type}
+                  disabled={disabled}
+                  value={field.value ? (field.value instanceof Date ? field.value.toISOString() : field.value) : ''}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                />
+                {error && <p className="text-sm text-red-500 mt-1">{error.message}</p>}
+              </>
+            )}
+          />
+        </div>
       </div>
-    </div>
-  )
-}
-
+    );
+  }
+  
 interface FormSelectProps {
   control: Control<UserFormData>
   name: keyof UserFormData
