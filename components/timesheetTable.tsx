@@ -235,7 +235,7 @@ const groupedByMonth = timesheets.reduce((acc, timesheet) => {
         <TableCell>
           {/* Use Link with passHref */}
           <Link href={`/timesheet/${timesheet.id}`} passHref>
-            <Button as="a">View Timesheet</Button>
+            <Button >View Timesheet</Button>
           </Link>
         </TableCell>
 

@@ -279,7 +279,7 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
   const fetchAndAddLeaveRequests = async (currentUserId: number) => {
     try {
       // Fetch all leave requests from the API
-      const response = await fetch('http://localhost:3030/api/leaves');
+      const response = await fetch(`/api/leave?userId=${currentUserId}`);
       if (!response.ok) {
         throw new Error('Failed to fetch leave requests');
       }
@@ -287,7 +287,7 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
       const data = await response.json();
 
       // Extract the leaveRequests array
-      const leaveRequests = data.leaveRequests;
+      const leaveRequests = data.fullyApprovedLeaveRequests || [];      
 
       if (!Array.isArray(leaveRequests)) {
         throw new Error('leaveRequests is not an array');

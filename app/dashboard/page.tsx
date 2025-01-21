@@ -11,8 +11,6 @@ import { Badge } from "@/components/ui/badge"
 import { Calendar } from "@/components/ui/calendar"
 import { Users, Briefcase, Calendar as CalendarIcon, TrendingUp } from 'lucide-react'
 import PerformanceChart from '@/components/charts';
-import Header from '@/components/header';
-import Footer from '@/components/footer';
 
 
 export default function HRMSDashboard() {
@@ -35,7 +33,7 @@ export default function HRMSDashboard() {
       display: 'flex', 
       flexDirection: 'column', 
       minHeight: '100vh' 
-    }}>                <Header />
+    }}>                
 
     <div className="flex flex-col space-y-4 p-8 bg-background" style={{flex:1, padding:"20px"}}>
 
@@ -258,7 +256,6 @@ export default function HRMSDashboard() {
         </TabsContent>
       </Tabs>
     </div>
-    <Footer/>
 
     </div>
   )

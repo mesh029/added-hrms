@@ -56,23 +56,32 @@ export const authenticateJWT = (req, res, next) => {
 
 //Authenticate token
 
+export const authenticateToken = async (req) => {
+    try {
+        const authHeader = req.headers.get('authorization');  // Use `get` method for headers in Next.js
+        const token = authHeader?.split(' ')[1];
 
-export const authenticateToken = (req, res, next) => {
-    const token = req.headers['authorization']?.split(' ')[1];
-    console.log("Received Token:", token);
-    
-    if (!token) {
-        console.log("No token found");
-        return res.sendStatus(401); // Unauthorized
-    }
-    
-    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-        if (err) {
-            console.log("JWT verification error:", err);
-            return res.sendStatus(403); // Forbidden
+        console.log("Received Token:", token);
+
+        if (!token) {
+            console.log("No token found");
+            return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
         }
-    
-        req.user = user;
-        next();
-    });
+
+        return new Promise((resolve, reject) => {
+            jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+                if (err) {
+                    console.log("JWT verification error:", err);
+                    reject(new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }));
+                }
+
+                req.user = user;
+                resolve(null);  // No error means authentication is successful
+            });
+        });
+
+    } catch (error) {
+        console.error("Error in authentication:", error);
+        return new Response(JSON.stringify({ error: "Internal Server Error" }), { status: 500 });
+    }
 };

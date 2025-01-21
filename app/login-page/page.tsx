@@ -12,15 +12,17 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null); // Add error state
   const router = useRouter();
 
   async function onSubmit(event: React.SyntheticEvent) {
     event.preventDefault();
     setIsLoading(true);
+    setError(null); // Clear previous errors
 
     try {
         // Step 1: Make a login request to the server at the correct address
-        const response = await fetch("http://localhost:3030/login", {
+        const response = await fetch("/api/auth/login", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -29,7 +31,9 @@ export default function LoginPage() {
         });
 
         if (!response.ok) {
-            throw new Error("Login failed");
+            const errorData = await response.json(); // Get error message from the server
+            setError(errorData.error || "Login failed"); // Display error message
+            throw new Error(errorData.error || "Login failed");
         }
 
         // Step 2: Get the data from the login response
@@ -40,13 +44,18 @@ export default function LoginPage() {
         localStorage.setItem('jwtToken', data.token); 
 
         // Step 3: Fetch user data using the token
-        const userResponse = await fetch("http://localhost:3030/api/user/me", { // Adjust the endpoint as necessary
+        const userResponse = await fetch("/api/users/me", { // Adjust the endpoint as necessary
             headers: {
                 "Authorization": `Bearer ${data.token}`,
                 "Content-Type": "application/json"
             }
         });
 
+        if (!userResponse.ok) {
+            const errorData = await userResponse.json();
+            setError(errorData.error || "Failed to fetch user data");
+            throw new Error(errorData.error || "Failed to fetch user data");
+        }
 
         const userData = await userResponse.json();
         console.log("User Data:", userData); // Check if role data is here
@@ -60,11 +69,11 @@ export default function LoginPage() {
 
     } catch (error) {
         console.error("Login error:", error);
-        // Optionally show an error message here
+        // Show an error message on the UI
     } finally {
         setIsLoading(false);
     }
-}
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-r from-red-900 to-blue-900">
@@ -103,6 +112,12 @@ export default function LoginPage() {
               />
             </div>
           </div>
+
+          {error && (
+            <div className="text-sm text-red-500 mt-2">
+              {error} {/* Display the error message here */}
+            </div>
+          )}
         </CardContent>
         <CardFooter className="flex flex-col">
           <Button className="w-full" onClick={onSubmit} disabled={isLoading}>

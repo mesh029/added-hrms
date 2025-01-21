@@ -21,8 +21,6 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
-import Footer from "@/components/footer"
-import Header from "@/components/header"
 import AdminLeaveManagementComponent from "@/components/leaveAdmin"
 import Link from "next/link"
 
@@ -364,7 +362,6 @@ export default function UserProfilePage() {
   return (
     <Suspense fallback={<div>Loading user profile...</div>}>
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-    <Header/>
     <div className="container mx-auto p-4 sm:p-8" style={{ flex: 1, padding: "20px" }}>
 
     <Card className="w-full max-w-4xl mx-auto">
@@ -986,7 +983,6 @@ render={({ field }) => (
     </Card>
     </div>
 
-    <Footer/>
     </div>
     </Suspense>
 

@@ -2,8 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import Header from '@/components/header';
-import Footer from '@/components/footer';
+
 import { EmployeeProvider } from "./context/EmployeeContext";
 
 
@@ -11,7 +10,6 @@ export default function LandingPage() {
   return (
     <EmployeeProvider>
     <div className="flex flex-col min-h-screen bg-background">
-      <Header />
 
       <main className="flex flex-col items-center justify-center flex-1 p-8">
         <h1 className="text-4xl font-bold mb-4">Welcome to Your HR Management System</h1>
@@ -64,7 +62,6 @@ export default function LandingPage() {
         </div>
       </main>
 
-      <Footer />
       
     </div>
     </EmployeeProvider>

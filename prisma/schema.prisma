@@ -11,25 +11,8 @@ generator client {
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
-}
-
-model Approval {
-  id          Int       @id @default(autoincrement())
-  approverId  Int
-  approverRole String    // e.g., "Approver A", "Approver B"
-  approverName String
-  signature   String?    // Approver's signature (URL or base64)
-  timesheetId Int?
-  leaveRequestId Int?
-  status      String     @default("Pending") // Approval status
-  timestamp   DateTime   @default(now())
-
-  approver    User       @relation(fields: [approverId], references: [id])
-  timesheet   Timesheet? @relation(fields: [timesheetId], references: [id])
-  leaveRequest Leave? @relation(fields: [leaveRequestId], references: [id])
-}
-
-model User {
+  
+}model User {
   id                      Int        @id @default(autoincrement())
   name                    String
   facilities              Json?       // Array of facilities for PO users
@@ -57,23 +40,20 @@ model User {
   updatedAt               DateTime   @default(now()) @updatedAt      // Auto-updated field
   signature               String?
   
-  // Relationships
+  // Relationships (removed onDelete: Cascade)
   approvals   Approval[]
   leaves      Leave[]
   timesheets  Timesheet[]
   notifications  Notification[]
-  
-
 }
-
 
 model Leave {
   id         Int      @id @default(autoincrement())
   startDate  DateTime
   endDate    DateTime
   status     String
-  user       User     @relation(fields: [userId], references: [id])
-  approvers    Json ?
+  user       User     @relation(fields: [userId], references: [id]) // Removed onDelete: Cascade
+  approvers  Json?
   userId     Int
   reason     String
   leaveType  String?
@@ -91,18 +71,17 @@ model Notification {
   createdAt      DateTime @default(now())
   read           Boolean  @default(false)
 
-  // Simplified relations without conflicting constraint names
-  recipient      User?       @relation(fields: [recipientId], references: [id])
+  // Relationships (removed onDelete: Cascade)
+  recipient      User?       @relation(fields: [recipientId], references: [id]) // Removed onDelete: Cascade
   leaveRequest   Leave?      @relation(fields: [leaveRequestId], references: [id])
   timesheet      Timesheet?  @relation(fields: [timesheetId], references: [id])
 }
 
-
 model Timesheet {
   id        Int      @id @default(autoincrement()) // Unique timesheet ID
   userId    Int      // User this timesheet belongs to
-  user      User     @relation(fields: [userId], references: [id])
-  approvers    Json ?
+  user      User     @relation(fields: [userId], references: [id]) // Removed onDelete: Cascade
+  approvers Json?
   entries   TimesheetEntry[]  // Array of entries related to this timesheet (one per day)
   month     Int      // The month of the timesheet (e.g., 1 = January, 2 = February, etc.)
   year      Int      // The year of the timesheet
@@ -120,4 +99,20 @@ model TimesheetEntry {
   hours       Float     // Hours worked on this specific day
   type        String    // Type of time entry (e.g., 'Regular', 'Holiday', 'Other')
   description String    // Description for this time entry (optional)
+}
+
+model Approval {
+  id          Int       @id @default(autoincrement())
+  approverId  Int
+  approverRole String    // e.g., "Approver A", "Approver B"
+  approverName String
+  signature   String?    // Approver's signature (URL or base64)
+  timesheetId Int?
+  leaveRequestId Int?
+  status      String     @default("Pending") // Approval status
+  timestamp   DateTime   @default(now())
+
+  approver    User       @relation(fields: [approverId], references: [id], onDelete: Cascade) // Correct onDelete: Cascade
+  timesheet   Timesheet? @relation(fields: [timesheetId], references: [id], onDelete: Cascade)
+  leaveRequest Leave? @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
 }

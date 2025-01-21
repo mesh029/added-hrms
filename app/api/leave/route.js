@@ -115,7 +115,7 @@ export async function GET(req) {
             } else if (role === "PADM") {
                 return leave.status === "Approved by: HR";
             } else if (role === "STAFF") {
-                return leave.status !== "Fully Approved" && !leave.status.startsWith("Rejected by:");
+                return leave.status !== "Fully Approved" && !leave.status.startsWith("Denied by:");
             }
             return false;
         }).map(leave => ({ ...leave, label: "Pending" }));

@@ -25,7 +25,7 @@ const ApprovalFlowComponent: React.FC<TimesheetApprovalProps> = ({ timesheetId }
     const fetchApprovalFlow = async () => {
       try {
         const response = await fetch(
-          `http://localhost:3030/api/timesheet/${timesheetId}/approval-flow`
+          `/api/timesheet/${timesheetId}/flow`
         );
         if (!response.ok) {
           const errorText = await response.text(); // Get error message from the response body

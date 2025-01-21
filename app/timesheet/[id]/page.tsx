@@ -7,8 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableRow } from "@/components/ui/table";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
-import Header from "@/components/header";
-import Footer from "@/components/footer";
+
 import rough from "roughjs";
 
 
@@ -201,7 +200,6 @@ const TimesheetPage: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-    <Header/>
     <Card style={{ flex: 1, padding: "20px" }}>
       <CardHeader>
         <CardTitle>Timesheet Details</CardTitle>
@@ -268,7 +266,6 @@ const TimesheetPage: React.FC = () => {
         )}
       </CardContent>
     </Card>
-          <Footer/>
 
     </div>
   );

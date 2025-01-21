@@ -6,7 +6,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { format, startOfDay } from 'date-fns'
 import { User, Briefcase, Mail, Scale, Ruler, MapPin, Users, Phone, Building, Lock, CalendarIcon, Edit3 } from 'lucide-react'
-
+import Footer from '@/components/footer';
+import Header from '@/components/header';
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
@@ -20,6 +21,7 @@ import { useToast } from '@/hooks/use-toast'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useRouter } from 'next/router';
+import { Head } from 'react-day-picker'
 
 const baseSchema = z.object({
     name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -147,11 +149,10 @@ const initialUserData: UserFormData = {
 type Role = "INCHARGE" | "PADM" | "PO" | "STAFF" | "HR";
 
 
-export default function UserManagement({userData }: UserManagementProps) {
-
+export default function UserManagement( ){
     const [isNewUser, setNewUser] = useState(true)
 
-    const [formData, setFormData] = useState<UserFormData>(userData || initialUserData);
+    const [formData, setFormData] = useState<UserFormData>(initialUserData);
   const [isEditing, setIsEditing] = useState(false)
   const [selectedUser, setSelectedUser] = useState<UserFormData | null>(null)
   const [selectedRole, setSelectedRole] = useState<string>('')
@@ -202,6 +203,14 @@ export default function UserManagement({userData }: UserManagementProps) {
       form.setValue('email', formData.email || '');
       form.setValue('leaveDays', formData.leaveDays ? parseInt(formData.leaveDays.toString(), 10) : undefined);
       form.setValue('reportsTo', formData.reportsTo || '');
+      form.setValue('location', formData.location || '');
+      form.setValue('department', formData.department || '');
+      form.setValue('title', formData.title || '');
+      form.setValue('address', formData.address || '');
+
+
+
+
       setDepartment(formData.department)
       setTitle(formData.title)
       setLocation(formData.location)
@@ -459,6 +468,10 @@ export default function UserManagement({userData }: UserManagementProps) {
   };
   
   return (
+    <>
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+
+    <Header/>
     <Card className="w-full max-w-4xl mx-auto">
       <CardHeader>
         <CardTitle>{isNewUser ? 'Create New User' : 'User Profile'}</CardTitle>
@@ -650,6 +663,7 @@ export default function UserManagement({userData }: UserManagementProps) {
                     id="address"
                     placeholder={"23, Sample Address"}
                     className="min-h-[80px]"
+                    defaultValue={formData.address}
                     {...form.register('address')}
                     disabled={!isEditing && !isNewUser}
                   />
@@ -727,6 +741,8 @@ export default function UserManagement({userData }: UserManagementProps) {
                   <p><span className="font-medium">Leave Days:</span> {formData.leaveDays}</p>
                   <p><span className="font-medium">Weight:</span> {formData.weight} kg</p>
                   <p><span className="font-medium">Height:</span> {formData.height} cm</p>
+
+                  <p><span className="font-medium">Address:</span> {formData.address} cm</p>
                 </div>
               </div>
             )}
@@ -734,6 +750,11 @@ export default function UserManagement({userData }: UserManagementProps) {
         </CardContent>
       )}
     </Card>
+    </div>
+        <Footer/>
+        </>
+
+
   )
 }
 
@@ -747,7 +768,7 @@ interface FormFieldProps {
   disabled?: boolean
 }
 
-function FormField({ control, name, label, placeholder, icon: Icon, type = 'text', disabled, defaultValue }: FormFieldProps) {
+function FormField({ control, name, label, placeholder, icon: Icon, type = 'text', disabled }: FormFieldProps) {
     return (
       <div className="space-y-2">
         <Label htmlFor={name}>{label}</Label>
@@ -756,7 +777,7 @@ function FormField({ control, name, label, placeholder, icon: Icon, type = 'text
           <Controller
             name={name}
             control={control}
-            defaultValue={defaultValue} // Add defaultValue here
+   // Add defaultValue here
             render={({ field, fieldState: { error } }) => (
               <>
                 <Input

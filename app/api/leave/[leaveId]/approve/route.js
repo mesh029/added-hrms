@@ -3,8 +3,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 export async function POST(req, context) {
-    const { params } = await context;  // Await params here
-    const { leaveId } = params; // Get leaveId from the URL path
+    const { leaveId } = await context.params;
     const { searchParams } = new URL(req.url);
     const approverId = searchParams.get('approverId'); // Get approverId from the query string
 

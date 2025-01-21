@@ -5,10 +5,8 @@ const prisma = new PrismaClient();
 
 // Handle the POST method for denying the leave
 export async function PATCH(req, context) {
-    const { params } = await context;  // Await params here
-
-  const { leaveId } = params; // Get leaveId from the URL path
-  const { reason } = await req.json(); // Get reason for denial
+    const { leaveId } = await context.params;
+    const { reason } = await req.json(); // Get reason for denial
   const { searchParams } = new URL(req.url);
 
   const approverId = searchParams.get('approverId'); // Get approverId from the query string

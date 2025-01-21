@@ -120,3 +120,13 @@ To add shadcn components
 npx shadcn@latest add textarea switch select table scroll-area
 
 ```
+
+# VENV 
+First install python pip
+
+sudo apt install python3-venv
+
+- python3 -m venv myenv
+- source myenv/bin/activate
+
+deactivate..to exit env

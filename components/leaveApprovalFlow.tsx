@@ -25,7 +25,7 @@ const LeaveApprovalFlowComponent: React.FC<LeaveApprovalProps> = ({ leaveId }) =
     const fetchApprovalFlow = async () => {
       try {
         const response = await fetch(
-          `http://localhost:3030/api/leave/${leaveId}/leave-approval-flow`
+          `/api/leave/${leaveId}/flow`
         );
         if (!response.ok) {
           const errorText = await response.text(); // Get error message from the response body

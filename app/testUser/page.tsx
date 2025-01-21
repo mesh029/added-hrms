@@ -29,7 +29,7 @@ export default function UserManagementLanding() {
   }
 
   if (isNewUser !== null) {
-    return <UserManagement isNewUser={isNewUser} userData={userData} />
+    return <UserManagement  />
   }
 
   return (

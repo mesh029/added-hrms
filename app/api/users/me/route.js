@@ -1,17 +1,16 @@
-// app/api/user/me/route.js
 import { NextResponse } from 'next/server';
 import { authenticateToken } from '../../middlewares/authMiddleWare'; // Import the middleware
 
 export async function GET(req) {
-    // Apply the authenticateToken middleware to verify the token
-    const authResponse = authenticateToken(req);
-    if (authResponse) {
-        return authResponse; // If unauthorized, return error response
-    }
-
     try {
+        // Apply the authenticateToken middleware to verify the token
+        const authResponse = await authenticateToken(req);
+        if (authResponse) {
+            return authResponse; // If unauthorized, return error response
+        }
+
         // The user information will be available as req.user after the middleware
-        const user = req.user; // Assuming the user information is in the token
+        const user = req.user; // Assuming the middleware sets req.user
 
         return NextResponse.json(user, { status: 200 });
     } catch (error) {

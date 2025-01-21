@@ -101,7 +101,7 @@ useEffect(() => {
     return;
   }
 
-  fetch("http://localhost:3030/api/user/me", {
+  fetch("/api/users/me", {
     headers: {
       "Authorization": `Bearer ${token}`,
       "Content-Type": "application/json",
@@ -119,7 +119,7 @@ useEffect(() => {
 
       
 
-      return fetch(`http://localhost:3030/api/users/${userId}`, {
+      return fetch(`/api/users/${userId}`, {
         headers: {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -139,7 +139,7 @@ useEffect(() => {
 
       // If the user is an admin, fetch the list of all users
       if (isAdmin) {
-        return fetch("http://localhost:3030/api/users", {
+        return fetch("/api/users", {
           headers: {
             "Authorization": `Bearer ${token}`,
             "Content-Type": "application/json",
@@ -166,7 +166,7 @@ useEffect(() => {
   
 const handleDeleteUser = async (id: number) => {
   try {
-    const response = await fetch(`http://localhost:3030/api/users/${id}`, {
+    const response = await fetch(`/api/users/${id}`, {
       method: "DELETE",
     });
 
@@ -180,6 +180,7 @@ const handleDeleteUser = async (id: number) => {
 
     setRefreshKey((prevKey) => prevKey + 1);
     alert("User deleted successfully.");
+    window.location.reload()
     setDeleteUser(null); // Close the modal
     // Optionally refresh the user list
     // fetchUsers();
@@ -296,13 +297,14 @@ const handleUpdateUser = (updatedUser: User) => {
           <Button variant="outline" onClick={onCancel}>
             Cancel
           </Button>
-          <Button variant="destructive" onClick={() => onConfirm(user.id)}>
+          <Button variant="destructive" onClick={() => onConfirm(user.id)}> {/* Pass only the user id */}
             Delete
           </Button>
         </div>
       </div>
     </div>
   );
+  
 
   return (
     <EmployeeProvider>
@@ -641,7 +643,7 @@ const handleUpdateUser = (updatedUser: User) => {
           View {employee.name}'s Profile
         </Link>
       </Button>
-      {userMain.role === "Admin" && (
+      {userMain.role === "admin" && (
         <Button
           variant="destructive"
           className="ml-2"
@@ -654,13 +656,15 @@ const handleUpdateUser = (updatedUser: User) => {
   ))}
 
   {/* Confirmation Modal */}
-  {deleteUser && (
-    <DeleteConfirmationModal
-      user={deleteUser}
-      onCancel={() => setDeleteUser(null)}
-      onConfirm={handleDeleteUser}
-    />
-  )}
+{/* Confirmation Modal */}
+{deleteUser && (
+  <DeleteConfirmationModal
+    user={deleteUser}  // Pass the entire user object
+    onCancel={() => setDeleteUser(null)}
+    onConfirm={() => handleDeleteUser(deleteUser.id)} // Directly call handleDeleteUser with user.id
+  />
+)}
+
 </div>
 
 

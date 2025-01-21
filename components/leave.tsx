@@ -9,7 +9,7 @@ interface LeaveRequest {
   startDate: string;
   endDate: string;
   reason: string;
-  status: 'Pending' | 'Approved' | 'Denied';
+  status: 'Pending' | 'Approved' | 'Denied' | 'Fully Approved';
 }
 
 interface LeaveManagementComponentProps {
@@ -69,14 +69,6 @@ const LeaveManagementComponent: React.FC<LeaveManagementComponentProps> = ({ use
   const [expandedLeave, setExpandedLeave] = useState<number | null>(null);
   const [pending, setPending] = useState(false); // Initialize state
 
-  // Update the 'pending' state based on the condition
-  useEffect(() => {
-    const hasPendingRequest = myLeaveRequests.some(
-      (request) => request.status === "Pending"
-    );
-    setPending(hasPendingRequest); // Set pending to true or false based on the condition
-  }, [myLeaveRequests]); // This runs whenever myLeaveRequests change
-
 
   const toggleExpand = (id: number) => {
     setExpandedLeave((prev) => (prev === id ? null : id));
@@ -112,10 +104,11 @@ const LeaveManagementComponent: React.FC<LeaveManagementComponentProps> = ({ use
     }
   }, [newLeave.startDate, newLeave.endDate]);
 
+
   useEffect(() => {
     const fetchLeaveRequests = async () => {
       try {
-        const response = await fetch(`http://localhost:3030/api/leaves/${userId}`, {
+        const response = await fetch(`/api/leave?userId=${userId}`, {
           method: "GET",
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -124,7 +117,18 @@ const LeaveManagementComponent: React.FC<LeaveManagementComponentProps> = ({ use
 
         if (response.ok) {
           const data = await response.json();
-          setMyLeaveRequests(data);
+
+          // Extract pending leave requests
+          const { pendingLeaveRequests } = data;
+
+          // Check if there are any pending leave requests
+          const hasPendingRequests = pendingLeaveRequests?.length > 0;
+
+          // Set 'pending' to true if there are any pending leave requests
+          setPending(hasPendingRequests);
+
+          // Optionally, you can also set the leaveRequests state
+          setLeaveRequests(pendingLeaveRequests);
         } else {
           console.error("Failed to fetch leave requests.");
         }
@@ -135,31 +139,7 @@ const LeaveManagementComponent: React.FC<LeaveManagementComponentProps> = ({ use
 
     fetchLeaveRequests();
   }, [userId]);
-
-  useEffect(() => {
-    const fetchLeaveRequests = async () => {
-      try {
-        const response = await fetch(`http://localhost:3030/api/leaves`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setLeaveRequests(data.leaveRequests);
-        } else {
-          console.error("Failed to fetch leave requests.");
-        }
-      } catch (error) {
-        console.error("Error fetching leave requests:", error);
-      }
-    };
-
-    fetchLeaveRequests();
-  }, []);
-
+  
   const handleRequestNewLeave = async () => {
     const leaveReason = newLeave.reason === "Other" ? additionalReason : newLeave.reason;
   
@@ -248,7 +228,7 @@ const LeaveManagementComponent: React.FC<LeaveManagementComponentProps> = ({ use
 
   return (
     <div className="space-y-4">
-      {myLeaveRequests.some((request) => request.status === 'Pending') && (
+      {pending && !isApprover &&(
         <div className="text-red-500 text-sm mt-2">
           You have a pending leave request. Please wait for approval before submitting another request.
         </div>
