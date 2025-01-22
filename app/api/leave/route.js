@@ -91,6 +91,10 @@ export async function GET(req) {
             else if (role === "STAFF") {
                 return leaveRequests.filter(leave => leave.user.id === user.id);
             }
+            else if (role === "admin") {
+                return leaveRequests
+            }
+
 
             // Return empty array for unrecognized roles
             return [];
@@ -115,6 +119,9 @@ export async function GET(req) {
             } else if (role === "PADM") {
                 return leave.status === "Approved by: HR";
             } else if (role === "STAFF") {
+                return leave.status !== "Fully Approved" && !leave.status.startsWith("Denied by:");
+            }
+            else if (role === "admin") {
                 return leave.status !== "Fully Approved" && !leave.status.startsWith("Denied by:");
             }
             return false;

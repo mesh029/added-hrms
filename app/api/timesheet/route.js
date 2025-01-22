@@ -95,9 +95,13 @@ export async function GET(req) {
                     timesheet.user.id === user.id
                 );
             }
+            else if (role === "admin") {
+                return timesheets
+            }
+
 
             // Fallback for undefined roles
-            return timesheets;
+            return [];
         };
 
         // Apply role-based filtering
@@ -114,6 +118,9 @@ export async function GET(req) {
             } else if (role === "PADM") {
                 return timesheet.status === "Approved by: HR";
             } else if (role === "STAFF") {
+                return timesheet.status !== "Fully Approved" && !timesheet.status.startsWith("Rejected by:");
+            }
+            else if (role === "admin") {
                 return timesheet.status !== "Fully Approved" && !timesheet.status.startsWith("Rejected by:");
             }
             return false;

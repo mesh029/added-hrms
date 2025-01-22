@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogActions, DialogContent, DialogTitle, TextField } from '@mui/material';
 import { ChevronDown, ChevronUp, Circle, Hourglass, XCircle } from "lucide-react";
 import LeaveApprovalFlowComponent from "./leaveApprovalFlow";
+import { useToast } from '../app/context/ToastContext'
 
 interface LeaveRequest {
     id: number;
@@ -25,15 +26,40 @@ interface LeaveApprovalProps {
     userRole: string;
     leaveRequests: LeaveRequest[];
     title: string;
-}
+    setLeaveRequestAD: React.Dispatch<React.SetStateAction<boolean>>;}
 
-const LeaveTable: React.FC<LeaveApprovalProps> = ({ userId, userRole, title, leaveRequests }) => {
+const LeaveTable: React.FC<LeaveApprovalProps> = ({ userId, userRole, title, leaveRequests, setLeaveRequestAD }) => {
     const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
     const [expandedLeave, setExpandedLeave] = useState<number | null>(null);
     const [openApproveModal, setOpenApproveModal] = useState(false);
     const [openRejectModal, setOpenRejectModal] = useState(false);
     const [rejectReason, setRejectReason] = useState('');
   const [selectedLeaveId, setSelectedLeaveId] = useState<number | null>(null);
+
+const { showToast } = useToast();
+
+
+  const handleSuccessToast = () => {
+    // Trigger success toast
+    showToast("Success! leave Request wass Approved.", "success");
+  };
+
+  const handleRejectToast = () => {
+    // Trigger success toast
+    showToast("Leave Request wass Rejected.", "warning");
+  };
+
+
+  const handleErrorToast = () => {
+    // Trigger error toast
+    showToast("Error! Something went wrong.", "error");
+  };
+
+
+
+  const toggleExpand = (id: number) => {
+    setExpandedLeave((prev) => (prev === id ? null : id));
+  };
 
     const getStatusIndicator = (status: string) => {
         if (status === "Fully Approved") return <Circle className="text-green-500 w-5 h-5" />;
@@ -52,10 +78,6 @@ const LeaveTable: React.FC<LeaveApprovalProps> = ({ userId, userRole, title, lea
 
     const toggleMonthExpand = (month: string) => {
         setExpandedMonth((prev) => (prev === month ? null : month));
-    };
-
-    const toggleExpand = (id: number) => {
-        setExpandedLeave((prev) => (prev === id ? null : id));
     };
 
 
@@ -89,9 +111,9 @@ const LeaveTable: React.FC<LeaveApprovalProps> = ({ userId, userRole, title, lea
             }
           );
           if (response.ok) {
-            alert("Leave Request Approved successfully");
-            const updatedTimesheet = await response.json();
-            window.location.reload()
+            handleSuccessToast()
+            setLeaveRequestAD(true)
+            
     
             console.log("Leave Request approved successfully!");
           } else {
@@ -135,8 +157,9 @@ const LeaveTable: React.FC<LeaveApprovalProps> = ({ userId, userRole, title, lea
           console.log("Raw response:", rawResponse);
       
           if (response.ok) {
-            alert("Leave rejected successfully");
-            window.location.reload()
+            handleRejectToast()
+            setLeaveRequestAD(true)
+            
             // Optionally, update the state to reflect the rejection
             // setTimesheets(...) to remove or update the timesheet from the list
           } else {
@@ -145,6 +168,7 @@ const LeaveTable: React.FC<LeaveApprovalProps> = ({ userId, userRole, title, lea
               const data = JSON.parse(rawResponse);
               console.error("Failed to reject leave:", data.error || "Unknown error");
               alert(`Failed to reject timesheet: ${data.error || "Unknown error"}`);
+              handleErrorToast()
             } catch (error) {
               console.error("Error parsing response:", error);
               alert("Failed to reject timesheet. Server returned invalid response.");

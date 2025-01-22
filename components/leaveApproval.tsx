@@ -39,7 +39,7 @@ const LeaveApprovalComponent: React.FC<LeaveApprovalProps> = ({ userId, userRole
   const [openApproveModal, setOpenApproveModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [selectedLeaveRequestId, setSelectedLeaveRequestId] = useState<number | null>(null);
-
+  const [leaveRequestAD, setLeaveRequestAD] = useState(false); // State lifted up from SubComponent
   const handleRejectClick = (id: number) => {
     setSelectedLeaveRequestId(id);
     setOpenRejectModal(true);
@@ -100,9 +100,13 @@ const LeaveApprovalComponent: React.FC<LeaveApprovalProps> = ({ userId, userRole
         console.error("Error fetching leave requests:", error);
       }
     };
+    if (leaveRequestAD) {
+      fetchLeaveRequests();
+      setLeaveRequestAD(false); // Reset state after fetching leave requests
+    }
 
     fetchLeaveRequests();
-  }, [userId]);
+  }, [userId, leaveRequestAD]);
 
 
 
@@ -125,6 +129,8 @@ const LeaveApprovalComponent: React.FC<LeaveApprovalProps> = ({ userId, userRole
   leaveRequests={leaveRequests.pending}
   userId={userId}
   userRole={userRole}
+  setLeaveRequestAD={setLeaveRequestAD}
+
 />
 {userRole !== "STAFF" && (
   <LeaveTable
@@ -132,6 +138,8 @@ const LeaveApprovalComponent: React.FC<LeaveApprovalProps> = ({ userId, userRole
                 leaveRequests={leaveRequests.nextApprover}
                 userId={userId}
                 userRole={userRole}
+                setLeaveRequestAD={setLeaveRequestAD}
+
               />
 
 )}
@@ -141,12 +149,16 @@ const LeaveApprovalComponent: React.FC<LeaveApprovalProps> = ({ userId, userRole
                 leaveRequests={leaveRequests.approved}
                 userId={userId}
                 userRole={userRole}
+                setLeaveRequestAD={setLeaveRequestAD}
+
               />
               <LeaveTable
                 title="Rejected Leave Requests"
                 leaveRequests={leaveRequests.rejected}
                 userId={userId}
                 userRole={userRole}
+                setLeaveRequestAD={setLeaveRequestAD}
+
               />
             </>
           )}

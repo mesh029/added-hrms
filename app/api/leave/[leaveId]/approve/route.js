@@ -35,6 +35,30 @@ export async function POST(req, context) {
 
         const requestingUserName = leave.user.name;
 
+        // Calculate leave duration excluding weekends
+        const calculateLeaveDuration = (startDate, endDate) => {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            let duration = 0;
+
+            for (let current = new Date(start); current <= end; current.setDate(current.getDate() + 1)) {
+                if (current.getDay() !== 0 && current.getDay() !== 6) { // Exclude weekends (Sunday and Saturday)
+                    duration++;
+                }
+            }
+            return duration;
+        };
+
+        const leaveDuration = calculateLeaveDuration(leave.startDate, leave.endDate);
+
+        // Validate leave balance at the first approval stage
+        if (approver.role === "INCHARGE" && leave.user.leaveDays < leaveDuration) {
+            return NextResponse.json(
+                { error: "Insufficient leave days available." },
+                { status: 403 }
+            );
+        }
+
         // Check approval order
         if (approverIndex > 0) {
             const previousRole = approvalOrder[approverIndex - 1];
@@ -64,7 +88,7 @@ export async function POST(req, context) {
 
         // Fetch updated approvals for the leave request
         const approvals = await prisma.approval.findMany({ where: { leaveRequestId: parseInt(leaveId) } });
-        const approversDetails = approvals.map(approval => ({
+        const approversDetails = approvals.map((approval) => ({
             name: approval.approverName,
             role: approval.approverRole,
             title: approval.signature,
@@ -86,24 +110,37 @@ export async function POST(req, context) {
             data: { status },
         });
 
-        // Notify the staff who submitted the leave request about the current approval
-        await prisma.notification.create({
-            data: {
-                recipientId: leave.user.id,
-                message: `Your leave request (ID: ${leaveId}) has been approved by ${approver.role}.`,
-                leaveRequestId: parseInt(leaveId),
-            },
-        });
+        // Deduct leave days from user's balance if fully approved
+        if (allApproved) {
+            const remainingLeaveDays = leave.user.leaveDays - leaveDuration;
+            await prisma.user.update({
+                where: { id: leave.user.id },
+                data: { leaveDays: remainingLeaveDays },
+            });
 
+            const recipients = [
+                ...approvals.map((a) => a.approverId),
+                leave.user.id,
+            ];
+
+            for (const recipientId of recipients) {
+                await prisma.notification.create({
+                    data: {
+                        recipientId,
+                        message: `Leave request from ${requestingUserName} (ID: ${leaveId}) has been fully approved.`,
+                        leaveRequestId: parseInt(leaveId),
+                    },
+                });
+            }
+        }
+
+        // Notify the next approver if available
         const relatedLocations = {
-            "Kisumu": ["Kisumu", "Kakamega", "Vihiga"],
-            "Nyamira": ["Nyamira", "Kisii", "Migori"],
-            "Kakamega": ["Kisumu", "Kakamega", "Vihiga"],
-            // Add other locations and their related locations here
+            Kisumu: ["Kisumu", "Kakamega", "Vihiga"],
+            Nyamira: ["Nyamira", "Kisii", "Migori"],
+            Kakamega: ["Kisumu", "Kakamega", "Vihiga"],
         };
-  
 
-        // Determine the next approver and send notifications
         let nextRole, nextApprover;
         if (approver.role === "INCHARGE") {
             nextRole = "PO";
@@ -123,7 +160,6 @@ export async function POST(req, context) {
             });
         }
 
-        // Notify the next approver if available
         if (nextApprover) {
             await prisma.notification.create({
                 data: {
@@ -132,24 +168,6 @@ export async function POST(req, context) {
                     leaveRequestId: parseInt(leaveId),
                 },
             });
-        }
-
-        // Notify all involved when fully approved
-        if (allApproved) {
-            const recipients = [
-                ...approvals.map(a => a.approverId),
-                leave.user.id,
-            ];
-
-            for (const recipientId of recipients) {
-                await prisma.notification.create({
-                    data: {
-                        recipientId,
-                        message: `Leave request from ${requestingUserName} (ID: ${leaveId}) has been fully approved.`,
-                        leaveRequestId: parseInt(leaveId),
-                    },
-                });
-            }
         }
 
         return NextResponse.json({ message: "Leave approved successfully." }, { status: 200 });

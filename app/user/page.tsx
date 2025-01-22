@@ -23,6 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useRouter } from 'next/router';
 import { Head } from 'react-day-picker'
 
+
 const baseSchema = z.object({
     name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
     email: z.string().email({ message: 'Invalid email address.' }),
@@ -207,6 +208,8 @@ export default function UserManagement( ){
       form.setValue('department', formData.department || '');
       form.setValue('title', formData.title || '');
       form.setValue('address', formData.address || '');
+      form.setValue('facility', formData.facility || '');
+
 
 
 
@@ -267,7 +270,7 @@ export default function UserManagement( ){
 
   const fetchUserData = async (id: string) => {
     try {
-      const response = await fetch(`http://localhost:3030/api/users/${id}`)
+      const response = await fetch(`/api/users/${id}`)
       if (!response.ok) throw new Error("Failed to fetch user data")
       const userData = await response.json()
     setFormData(userData)
@@ -389,7 +392,6 @@ export default function UserManagement( ){
 
       if (!response.ok) throw new Error("Failed to save user data")
 
-        console.log("something went wrong")
 
 
       toast({

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { FaCheckCircle, FaTimesCircle, FaHourglass } from "react-icons/fa"; // Import icons for status
+import { useToast } from '../app/context/ToastContext'
 
 interface LeaveRequest {
   id: number;
@@ -15,6 +16,7 @@ interface LeaveRequest {
 interface LeaveManagementComponentProps {
   isApprover: boolean;
   userId: number;
+  leaveDays: number;
 }
 
 // Kenyan public holidays for 2024
@@ -56,7 +58,7 @@ const mapLeaveReasonToType = (reason: string) => {
   }
 };
 
-const LeaveManagementComponent: React.FC<LeaveManagementComponentProps> = ({ userId, isApprover }) => {
+const LeaveManagementComponent: React.FC<LeaveManagementComponentProps> = ({ userId, isApprover, leaveDays }) => {
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [myLeaveRequests, setMyLeaveRequests] = useState<LeaveRequest[]>([]);
   const [newLeave, setNewLeave] = useState<{ startDate: string; endDate: string; reason: string }>({
@@ -66,8 +68,23 @@ const LeaveManagementComponent: React.FC<LeaveManagementComponentProps> = ({ use
   });
   const [additionalReason, setAdditionalReason] = useState<string>('');
   const [leaveDuration, setLeaveDuration] = useState<number>(0);
+  const[deficit, setDeficit]=useState(true)
+
   const [expandedLeave, setExpandedLeave] = useState<number | null>(null);
   const [pending, setPending] = useState(false); // Initialize state
+const { showToast } = useToast();
+const [leaveRequestSubmitted, setLeaveRequestSubmitted] = useState(false); // New state to trigger re-fetch
+
+  const handleSuccessToast = () => {
+    // Trigger success toast
+    showToast("Success! Your leave request has been submitted for approval.", "success");
+  };
+
+  const handleErrorToast = () => {
+    // Trigger error toast
+    showToast("Error! Something went wrong.", "error");
+  };
+
 
 
   const toggleExpand = (id: number) => {
@@ -101,9 +118,15 @@ const LeaveManagementComponent: React.FC<LeaveManagementComponentProps> = ({ use
     if (newLeave.startDate && newLeave.endDate) {
       const duration = calculateLeaveDuration(newLeave.startDate, newLeave.endDate);
       setLeaveDuration(duration);
+  
+      if (leaveDays >= duration) {
+        setDeficit(true);  // Sufficient leave balance, allow leave application
+      } else {
+        setDeficit(false); // Insufficient balance, prevent leave application
+      }
     }
-  }, [newLeave.startDate, newLeave.endDate]);
-
+  }, [newLeave.startDate, newLeave.endDate, leaveDays]);
+  
 
   useEffect(() => {
     const fetchLeaveRequests = async () => {
@@ -138,7 +161,7 @@ const LeaveManagementComponent: React.FC<LeaveManagementComponentProps> = ({ use
     };
 
     fetchLeaveRequests();
-  }, [userId]);
+  }, [userId, leaveRequestSubmitted]);
   
   const handleRequestNewLeave = async () => {
     const leaveReason = newLeave.reason === "Other" ? additionalReason : newLeave.reason;
@@ -187,10 +210,10 @@ const LeaveManagementComponent: React.FC<LeaveManagementComponentProps> = ({ use
         setMyLeaveRequests((prev) => [...prev, newRequest]);
         setNewLeave({ startDate: '', endDate: '', reason: '' });
         setAdditionalReason('');
-        alert("Leave Request Submitted for Approval!");
+        handleSuccessToast()
   
         // Optionally reload the page after submitting
-        window.location.reload();
+        setLeaveRequestSubmitted(true)
       } else {
         // Log error response details
         const errorDetails = await response.json();
@@ -231,6 +254,11 @@ const LeaveManagementComponent: React.FC<LeaveManagementComponentProps> = ({ use
       {pending && !isApprover &&(
         <div className="text-red-500 text-sm mt-2">
           You have a pending leave request. Please wait for approval before submitting another request.
+        </div>
+      )}
+            {!deficit && !isApprover &&(
+        <div className="text-red-500 text-sm mt-2">
+          You can't submit a leave request. Your leave days have exceeded leave balance. Contact supervisor.
         </div>
       )}
       {/* Form for submitting new leave requests */}
@@ -289,12 +317,13 @@ const LeaveManagementComponent: React.FC<LeaveManagementComponentProps> = ({ use
               <p>{leaveDuration} day(s)</p>
             </div>
             <Button
-              onClick={handleRequestNewLeave}
-              className="mt-4"
-              disabled={pending}
-            >
-              Submit Leave Request
-            </Button>
+  onClick={handleRequestNewLeave}
+  className="mt-4"
+  disabled={!deficit || pending}
+>
+  Submit Leave Request
+</Button>
+
           </CardContent>
         </Card>
       )}
