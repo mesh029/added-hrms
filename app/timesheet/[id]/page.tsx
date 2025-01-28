@@ -4,11 +4,16 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
-
+import { format } from "date-fns";
 import rough from "roughjs";
+import Header from "@/components/header";
+import Footer from "@/components/footer";
+
+
+
 
 
 interface TimesheetEntry {
@@ -52,7 +57,7 @@ const TimesheetPage: React.FC = () => {
         if (!token) throw new Error("Token is missing. Please log in.");
 
         const response = await fetch(
-          `http://localhost:3030/api/timesheets/${timesheetId}`,
+          `/api/timesheet/${timesheetId}/entry`,
           {
             method: "GET",
             headers: {
@@ -77,7 +82,7 @@ const TimesheetPage: React.FC = () => {
         if (!token) throw new Error("Token is missing. Please log in.");
     
         const response = await fetch(
-          `http://localhost:3030/api/timesheet/${timesheetId}`,
+          `/api/timesheet/${timesheetId}`,
           {
             method: "GET",
             headers: {
@@ -95,19 +100,17 @@ const TimesheetPage: React.FC = () => {
         console.log(data);
     
         // Check if timesheet data exists and safely access approvers
-        if (!data.timeSheet) {
-          throw new Error("Timesheet data is missing.");
-        }
+     
     
         setTimesheet({
-          id: data.timeSheet.id,
-          userId: data.timeSheet.userId,
-          month: data.timeSheet.month,
-          year: data.timeSheet.year,
-          status: data.timeSheet.status,
-          name: data.timeSheet.user.name,
-          role: data.timeSheet.user.role,
-          approvers: data.timeSheet.approvers || [],  // Default to an empty array if approvers is missing
+          id: data.id,
+          userId: data.userId,
+          month: data.month,
+          year: data.year,
+          status: data.status,
+          name: data.user.name,
+          role: data.user.role,
+          approvers: data.approvers || [],  // Default to an empty array if approvers is missing
         });
       } catch (error) {
         console.error("Error fetching timesheet:", error);
@@ -199,54 +202,61 @@ const TimesheetPage: React.FC = () => {
   
 
   return (
+    <>
+    <Header/>
+
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-    <Card style={{ flex: 1, padding: "20px" }}>
-      <CardHeader>
-        <CardTitle>Timesheet Details</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <p>Loading...</p>
-        ) : timesheet ? (
-          <div>
-            <div className="mb-4">
-              <h2 className="text-2xl font-bold">Timesheet ID: {timesheet.id}</h2>
-              <p className="text-gray-600">User Name: {timesheet.name}</p>
-              <p className="text-gray-600">User ID: {timesheet.userId}</p>
-              <p className="text-gray-600">User Role: {timesheet.role}</p>
-              <p className="text-gray-600">
-                Month: {timesheet.month}, Year: {timesheet.year}
-              </p>
-              <p className="text-gray-600">Status: {timesheet.status}</p>
-            </div>
-            <div className="overflow-x-auto mb-6 max-h-72">
-              <Table className="min-w-full">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Date</TableCell>
-                    <TableCell>Hours</TableCell>
-                    <TableCell>Type</TableCell>
-                    <TableCell>Description</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {timesheetEntries.map((entry) => (
-                    <TableRow key={entry.id}>
-                      <TableCell>{new Date(entry.date).toLocaleDateString()}</TableCell>
-                      <TableCell>{entry.hours}</TableCell>
-                      <TableCell>{entry.type}</TableCell>
-                      <TableCell>{entry.description || "N/A"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            <div className="mt-6">
+      <Card style={{ flex: 1, padding: "20px" }}>
+        <CardHeader>
+          <CardTitle>Timesheet Details</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading || !timesheet ? (
+            <p>Loading...</p>
+          ) : (
+            <div>
+              <div className="mb-4">
+                <h2 className="text-2xl font-bold">Timesheet ID: {timesheet.id}</h2>
+                <p className="text-gray-600">User Name: {timesheet.name}</p>
+                <p className="text-gray-600">User ID: {timesheet.userId}</p>
+                <p className="text-gray-600">User Role: {timesheet.role}</p>
+                <p className="text-gray-600">
+                  Month: {timesheet.month}, Year: {timesheet.year}
+                </p>
+                <p className="text-gray-600">Status: {timesheet.status}</p>
+              </div>
+              <div className="overflow-x-auto mb-6 max-h-72">
+                <Table className="min-w-full">
+                <TableHeader>
+    <TableRow>
+      <TableHead>Date</TableHead>
+      <TableHead>Hours</TableHead>
+      <TableHead>Type</TableHead>
+      <TableHead>Description</TableHead>
+    </TableRow>
+  </TableHeader>
+                  <TableBody>
+                    {timesheetEntries.map((entry) => (
+                      <TableRow key={entry.id}>
+                        <TableCell>
+                          {entry.date
+                            ? format(new Date(entry.date), "MM/dd/yyyy")
+                            : "Invalid Date"}
+                        </TableCell>
+                        <TableCell>{entry.hours || "0"}</TableCell>
+                        <TableCell>{entry.type || "N/A"}</TableCell>
+                        <TableCell>{entry.description || "N/A"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="mt-6">
   <h3 className="text-xl font-semibold">Approvers</h3>
   {timesheet?.approvers && timesheet.approvers.length > 0 ? (
-    <div className="space-y-4">
+    <div className="flex flex-wrap justify-evenly gap-4">
       {timesheet.approvers.map((approver, index) => (
-        <div key={index} className="flex flex-col space-y-2">
+        <div key={index} className="flex flex-col p-4 border rounded-lg space-y-1 text-center">
           <p><strong>Name:</strong> {approver.name}</p>
           <p><strong>Role:</strong> {approver.role}</p>
           <p><strong>Title:</strong> {approver.title}</p>
@@ -257,17 +267,22 @@ const TimesheetPage: React.FC = () => {
     <p>No approvers available.</p>
   )}
 </div>
-            <Button onClick={downloadAsPDF} className="bg-blue-500 text-white">
-              Download PDF
-            </Button>
-          </div>
-        ) : (
-          <p>No timesheet found.</p>
-        )}
-      </CardContent>
-    </Card>
 
+              <Button
+                onClick={downloadAsPDF}
+                className="bg-blue-500 text-white"
+              >
+                Download PDF
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
+    <Footer/>
+    </>
+
+    
   );
 };
 

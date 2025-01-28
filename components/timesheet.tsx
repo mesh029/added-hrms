@@ -53,6 +53,8 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
   const [approvedTimesheet, setApprovedtimesheet] = useState(false);
 
   const [approvedMessage, setApprovedMessage] = useState<string | null>(null);
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+
 
 
   const [kenyaHolidays, setKenyaHolidays] = useState<string[]>([]);
@@ -450,7 +452,7 @@ const addLeaveRow = (leaveRequests: { startDate: string; endDate: string; reason
         data.roleBasedTimesheets.forEach((timesheet: Timesheet) => {
           if (timesheet.status !== 'Fully Approved' && !timesheet.status.startsWith('Rejected')) {
             hasPending = true;
-            setApprovedMessage("You have a pending timesheet and cannot send another for approval at this time.")
+            setPendingMessage("You have a pending timesheet and cannot send another for approval at this time.")
           }
   
           if (
@@ -483,7 +485,7 @@ const addLeaveRow = (leaveRequests: { startDate: string; endDate: string; reason
   if (pendingTimesheet) {
     return(
       <div style={{ padding: '20px', color: '#FF0000' }}>
-      <strong>{approvedMessage}</strong>
+      <strong>{pendingMessage}</strong>
     </div>
     ) 
   }else if (approvedTimesheet){
@@ -493,9 +495,10 @@ const addLeaveRow = (leaveRequests: { startDate: string; endDate: string; reason
     </div>
     ) 
   }
+
   
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 mb-10">
       <span className="text-lg font-semibold">
         {currentMonth.toLocaleString("default", { month: "long" })} {currentMonth.getFullYear()}
       </span>
@@ -605,7 +608,7 @@ const isLeaveDay = leaveDays.some((leaveDay) => {
       </div>
 
       <div className="flex justify-between">
-        <Button variant="outline" onClick={handleSubmit}>Submit Timesheet</Button>
+        <Button variant="default"  onClick={handleSubmit}>Submit Timesheet</Button>
       </div>
     </div>
   );

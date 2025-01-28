@@ -462,126 +462,100 @@ const handleUpdateUser = (updatedUser: User) => {
       className={`transition-all duration-500 ease-in-out ${isCardVisible ? 'md:col-span-2' : 'md:col-span-3 w-full'}`}
     >        <Card className="mw-full">
             <Tabs defaultValue="personal" className="w-full">
-              <CardHeader>
-               <TabsList
-  style={{
-    display: 'flex',
-    borderRadius: '5px',
-    padding: '5px',
-    gap: '10px',
-  }}
->
-  <TabsTrigger
-    value="personal"
-    onClick={() => handleTabClick('personal')}
-    style={{
-      backgroundColor: activeTab === 'personal' ? '#003366' : '#8B1F25',
-      color: activeTab === 'personal' ? '#FFFFFF' : '#DDDDDD',
-      padding: '10px 20px',
-      borderRadius: '5px',
-      transition: 'background-color 0.3s, color 0.3s',
-    }}
-  >
-    Personal Information
-  </TabsTrigger>
-  <TabsTrigger
-    value="account"
-    onClick={() => handleTabClick('account')}
-    style={{
-      backgroundColor: activeTab === 'account' ? '#003366' : '#8B1F25',
-      color: activeTab === 'account' ? '#FFFFFF' : '#DDDDDD',
-      padding: '10px 20px',
-      borderRadius: '5px',
-      transition: 'background-color 0.3s, color 0.3s',
-    }}
-  >
-    Account Settings
-  </TabsTrigger>
-  {!isAdmin && (
-
-  <TabsTrigger
-    value="timesheet"
-    onClick={() => handleTabClick('timesheet')}
-    style={{
-      backgroundColor: activeTab === 'timesheet' ? '#003366' : '#8B1F25',
-      color: activeTab === 'timesheet' ? '#FFFFFF' : '#DDDDDD',
-      padding: '10px 20px',
-      borderRadius: '5px',
-      transition: 'background-color 0.3s, color 0.3s',
-    }}
-  >
-    Timesheet
-  </TabsTrigger>
-  )}
-  <TabsTrigger
-    value="leave"
-    onClick={() => handleTabClick('leave')}
-    style={{
-      backgroundColor: activeTab === 'leave' ? '#003366' : '#8B1F25',
-      color: activeTab === 'leave' ? '#FFFFFF' : '#DDDDDD',
-      padding: '10px 20px',
-      borderRadius: '5px',
-      transition: 'background-color 0.3s, color 0.3s',
-    }}
-  >
-    Leave Management
-  </TabsTrigger>
-
-  
-  {isAdmin && (
-
-
-<TabsTrigger
-  value="timesheetManagement"
-  onClick={() => handleTabClick('timesheetManagement')}
-  style={{
-    backgroundColor: activeTab === 'timesheetManagement' ? '#003366' : '#8B1F25',
-    color: activeTab === 'add' ? '#FFFFFF' : '#DDDDDD',
-    padding: '10px 20px',
-    borderRadius: '5px',
-    transition: 'background-color 0.3s, color 0.3s',
-  }}
->
-  Manage Timesheets
-</TabsTrigger>
-
-)}
-
-  {isAdmin && (
-
-<>
-  <TabsTrigger
-    value="add"
-    onClick={() => handleTabClick('add')}
-    style={{
-      backgroundColor: activeTab === 'add' ? '#003366' : '#8B1F25',
-      color: activeTab === 'add' ? '#FFFFFF' : '#DDDDDD',
-      padding: '10px 20px',
-      borderRadius: '5px',
-      transition: 'background-color 0.3s, color 0.3s',
-    }}
-  >
-    Manage Employees
-  </TabsTrigger>
+            <CardHeader>
+  <TabsList className="flex flex-wrap gap-2 p-2 rounded-md h-auto">
+    <TabsTrigger
+      value="personal"
+      onClick={() => handleTabClick('personal')}
+      className="px-4 py-2 rounded-md transition-colors"
+      style={{
+        backgroundColor: activeTab === 'personal' ? '#003366' : '#8B1F25',
+        color: activeTab === 'personal' ? '#FFFFFF' : '#DDDDDD',
+      }}
+    >
+      Personal Information
+    </TabsTrigger>
 
     <TabsTrigger
-    value="report"
-    onClick={() => handleTabClick('report')}
-    style={{
-      backgroundColor: activeTab === 'report' ? '#003366' : '#8B1F25',
-      color: activeTab === 'add' ? '#FFFFFF' : '#DDDDDD',
-      padding: '10px 20px',
-      borderRadius: '5px',
-      transition: 'background-color 0.3s, color 0.3s',
-    }}
-  >
-    Generate Reports
-  </TabsTrigger>
-  </>
+      value="account"
+      onClick={() => handleTabClick('account')}
+      className="px-4 py-2 rounded-md transition-colors"
+      style={{
+        backgroundColor: activeTab === 'account' ? '#003366' : '#8B1F25',
+        color: activeTab === 'account' ? '#FFFFFF' : '#DDDDDD',
+      }}
+    >
+      Account Settings
+    </TabsTrigger>
 
-)}
-</TabsList>
-              </CardHeader>
+    {!isAdmin && (
+      <TabsTrigger
+        value="timesheet"
+        onClick={() => handleTabClick('timesheet')}
+        className="px-4 py-2 rounded-md transition-colors"
+        style={{
+          backgroundColor: activeTab === 'timesheet' ? '#003366' : '#8B1F25',
+          color: activeTab === 'timesheet' ? '#FFFFFF' : '#DDDDDD',
+        }}
+      >
+        Timesheet
+      </TabsTrigger>
+    )}
+
+    <TabsTrigger
+      value="leave"
+      onClick={() => handleTabClick('leave')}
+      className="px-4 py-2 rounded-md transition-colors"
+      style={{
+        backgroundColor: activeTab === 'leave' ? '#003366' : '#8B1F25',
+        color: activeTab === 'leave' ? '#FFFFFF' : '#DDDDDD',
+      }}
+    >
+      Leave Management
+    </TabsTrigger>
+
+    {isAdmin && (
+      <>
+        <TabsTrigger
+          value="timesheetManagement"
+          onClick={() => handleTabClick('timesheetManagement')}
+          className="px-4 py-2 rounded-md transition-colors"
+          style={{
+            backgroundColor: activeTab === 'timesheetManagement' ? '#003366' : '#8B1F25',
+            color: activeTab === 'timesheetManagement' ? '#FFFFFF' : '#DDDDDD',
+          }}
+        >
+          Manage Timesheets
+        </TabsTrigger>
+
+        <TabsTrigger
+          value="add"
+          onClick={() => handleTabClick('add')}
+          className="px-4 py-2 rounded-md transition-colors"
+          style={{
+            backgroundColor: activeTab === 'add' ? '#003366' : '#8B1F25',
+            color: activeTab === 'add' ? '#FFFFFF' : '#DDDDDD',
+          }}
+        >
+          Manage Employees
+        </TabsTrigger>
+
+        <TabsTrigger
+          value="report"
+          onClick={() => handleTabClick('report')}
+          className="px-4 py-2 rounded-md transition-colors"
+          style={{
+            backgroundColor: activeTab === 'report' ? '#003366' : '#8B1F25',
+            color: activeTab === 'report' ? '#FFFFFF' : '#DDDDDD',
+          }}
+        >
+          Generate Reports
+        </TabsTrigger>
+      </>
+    )}
+  </TabsList>
+</CardHeader>
+
               <CardContent>
                 <TabsContent value="personal">
                   <form className="space-y-4">
@@ -634,6 +608,7 @@ const handleUpdateUser = (updatedUser: User) => {
                 
                 <TabsContent value="timesheet">
                 <TimesheetComponent userId={userMain.id} isApprover={isApprover} />
+
                 <TimesheetApprovalComponent userId={userMain.id} userRole={userMain.role}  name={userMain.name} title={userMain.title} />
 
 
@@ -654,69 +629,69 @@ const handleUpdateUser = (updatedUser: User) => {
 )}
               {isAdmin && (
                 <>
-  <TabsContent value="add">
-    <Card>
-      <CardHeader>
-        <CardTitle>Employee Directory</CardTitle>
-        <CardDescription>Manage and view all employee information</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex justify-between items-center mb-4">
+<TabsContent value="add">
+  <Card>
+    <CardHeader>
+      <CardTitle>Employee Directory</CardTitle>
+      <CardDescription>Manage and view all employee information</CardDescription>
+    </CardHeader>
+    <CardContent>
+      {/* Search and Add Section */}
+      <div className="flex justify-between items-center mb-4 max-w-full">
         <Input
-            className="max-w-sm"
-            placeholder="Search employees..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+          className="max-w-sm w-full"
+          placeholder="Search employees..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        {!isHandler && (
+          <Button>
+            <Link href={`/user`}>Add Employee</Link>
+          </Button>
+        )}
+      </div>
 
-          />
-          {!isHandler && (
-           <Button>
-           <Link href={`/user`}>
-           Add Employee
-           </Link>
+      {/* Filters and Export Section */}
+      <div className="flex flex-wrap justify-start space-x-4 mb-4 max-w-full overflow-x-auto">
+  <select
+    className="border rounded px-2 py-1 flex-shrink-0 w-full sm:w-auto"
+    value={selectedRole}
+    onChange={(e) => setSelectedRole(e.target.value)}
+  >
+    <option value="">Filter by Role</option>
+    {[...new Set(allUsers.map((u) => u.role))].map((role) => (
+      <option key={role} value={role}>
+        {role}
+      </option>
+    ))}
+  </select>
 
-           </Button>
+  <select
+    className="border rounded px-2 py-1 flex-shrink-0 w-full sm:w-auto"
+    value={selectedLocation}
+    onChange={(e) => setSelectedLocation(e.target.value)}
+  >
+    <option value="">Filter by Location</option>
+    {[...new Set(allUsers.map((u) => u.location))].map((location) => (
+      <option key={location} value={location}>
+        {location}
+      </option>
+    ))}
+  </select>
 
-           
-           )
+  <Button onClick={exportToExcel} className="w-full sm:w-auto">
+    Download Excel
+  </Button>
+</div>
 
-          
-          }         
-
-
-        </div>
-
-        <div className="flex justify-start space-x-4 mb-4">
-          <select
-            className="border rounded px-2 py-1"
-            value={selectedRole}
-            onChange={(e) => setSelectedRole(e.target.value)}
-          >
-            <option value="">Filter by Role</option>
-            {[...new Set(allUsers.map((u) => u.role))].map((role) => (
-              <option key={role} value={role}>
-                {role}
-              </option>
-            ))}
-          </select>
-          <select
-            className="border rounded px-2 py-1"
-            value={selectedLocation}
-            onChange={(e) => setSelectedLocation(e.target.value)}
-          >
-            <option value="">Filter by Location</option>
-            {[...new Set(allUsers.map((u) => u.location))].map((location) => (
-              <option key={location} value={location}>
-                {location}
-              </option>
-            ))}
-          </select>
-          <Button onClick={exportToExcel}>Download Excel</Button>
-        </div>
-        <div className="space-y-4">
+      {/* Employee List */}
+      <div className="space-y-4 max-h-[400px] overflow-y-auto max-w-full">
   {filteredUsers2.map((employee) => (
-    <div key={employee.id} className="flex items-center justify-between p-4 border rounded-lg">
-      <div className="flex items-center space-x-4">
+    <div
+      key={employee.id}
+      className="flex items-center justify-between p-4 border rounded-lg max-w-full flex-wrap"
+    >
+      <div className="flex items-center space-x-4 flex-shrink-0 w-full sm:w-auto">
         <Avatar>
           <AvatarFallback>
             {employee?.name.split(' ').map((n) => n[0]).join('')}
@@ -727,40 +702,41 @@ const handleUpdateUser = (updatedUser: User) => {
           <p className="text-sm text-muted-foreground">{employee.role}</p>
         </div>
       </div>
-      <Badge>{employee.department}</Badge>
-      <Button variant="outline" className="ml-2">
-        <Link href={`/user?id=${employee.id}`}>
-          View {employee.name}'s Profile
-        </Link>
-      </Button>
-      {userMain.role === "admin" && (
-        <Button
-          variant="destructive"
-          className="ml-2"
-          onClick={() => setDeleteUser(employee)}
-        >
-          Delete
+      <div className="flex flex-wrap items-center sm:space-x-4 space-y-2 sm:space-y-0">
+        <Badge className="flex-shrink-0">{employee.department}</Badge>
+        <Button variant="outline" className="ml-2">
+          <Link href={`/user?id=${employee.id}`}>
+            View {employee.name}'s Profile
+          </Link>
         </Button>
-      )}
+        {userMain.role === "admin" && (
+          <Button
+            variant="destructive"
+            className="ml-2"
+            onClick={() => setDeleteUser(employee)}
+          >
+            Delete
+          </Button>
+        )}
+      </div>
     </div>
   ))}
 
   {/* Confirmation Modal */}
-{/* Confirmation Modal */}
-{deleteUser && (
-  <DeleteConfirmationModal
-    user={deleteUser}  // Pass the entire user object
-    onCancel={() => setDeleteUser(null)}
-    onConfirm={() => handleDeleteUser(deleteUser.id)} // Directly call handleDeleteUser with user.id
-  />
-)}
-
+  {deleteUser && (
+    <DeleteConfirmationModal
+      user={deleteUser} // Pass the entire user object
+      onCancel={() => setDeleteUser(null)}
+      onConfirm={() => handleDeleteUser(deleteUser.id)} // Directly call handleDeleteUser with user.id
+    />
+  )}
 </div>
 
+    </CardContent>
+  </Card>
+</TabsContent>
 
-      </CardContent>
-    </Card>
-  </TabsContent>
+
 
 <TabsContent value="report">
 <Card>
@@ -769,9 +745,8 @@ const handleUpdateUser = (updatedUser: User) => {
     <CardDescription>Generate Reports</CardDescription>
   </CardHeader>
   <CardContent>
-    <div className="flex justify-between items-center mb-4">
-
-      <TimesheetReportPage/>
+  <div className="flex flex-wrap justify-between items-center mb-4">
+          <TimesheetReportPage/>
 
 </div>
 

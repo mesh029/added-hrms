@@ -1,24 +1,26 @@
-"use client";
-
 import { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { MessageCircle, Calendar } from "lucide-react";
 import Link from 'next/link';
+import { Dialog } from '@mui/material';
+import { Notifications as NotificationsIcon } from "@mui/icons-material"; // MUI Notifications Icon
+import { Calendar, CheckCircle } from 'lucide-react';
 
 export default function Header() {
   interface Notification {
+    id: number;
     message: string;
-    isRead: boolean;
+    read: boolean;
   }
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [parsedData, setParsedData] = useState<{ id?: string }>({});
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    // ✅ Only access localStorage when the component mounts (client-side only)
     if (typeof window !== "undefined") {
       const storedData = localStorage.getItem('userData') ?? '{}';
       try {
@@ -31,12 +33,12 @@ export default function Header() {
 
   useEffect(() => {
     if (parsedData?.id) {
-      fetch(`http://localhost:3030/api/notifications/${parsedData.id}`)
+      fetch(`/api/notifications/${parsedData.id}`)
         .then(response => response.json())
         .then(data => {
           const notificationsWithReadStatus = data.map((notification: any) => ({
             ...notification,
-            isRead: notification.isRead ?? false,
+            read: notification.read ?? false,
           }));
           setNotifications(notificationsWithReadStatus);
         })
@@ -46,24 +48,82 @@ export default function Header() {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
+        buttonRef.current && !buttonRef.current.contains(event.target as Node)
+      ) {
         setIsDropdownOpen(false);
       }
     };
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+
+    document.addEventListener('mousedown', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
-  const handleViewNotifications = () => {
-    setNotifications(prevNotifications =>
-      prevNotifications.map(notification => ({
-        ...notification,
-        isRead: true,
-      }))
-    );
+  const handleClickNotification = (notification: Notification) => {
+    setSelectedNotification(notification);
+    fetch(`/api/notifications/read`, {
+      method: 'PATCH',
+      body: JSON.stringify({ notificationIds: [notification.id] }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+      .then(response => response.json())
+      .then(() => {
+        setNotifications(prevNotifications =>
+          prevNotifications.map(n =>
+            n.id === notification.id ? { ...n, read: true } : n
+          )
+        );
+      })
+      .catch(err => console.error('Error marking notification as read:', err));
   };
 
-  const unreadCount = notifications.filter(notification => !notification.isRead).length;
+  const handleMarkAllAsRead = () => {
+    const unreadNotifications = notifications.filter(notification => !notification.read);
+    const unreadIds = unreadNotifications.map(n => n.id);
+
+    fetch(`/api/notifications/read`, {
+      method: 'PATCH',
+      body: JSON.stringify({ notificationIds: unreadIds }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+      .then(response => response.json())
+      .then(() => {
+        setNotifications(prevNotifications =>
+          prevNotifications.map(n => ({ ...n, read: true }))
+        );
+        setIsDropdownOpen(false);
+      })
+      .catch(err => console.error('Error marking all notifications as read:', err));
+  };
+
+  const handleTickNotification = (notification: Notification) => {
+    fetch(`/api/notifications/read`, {
+      method: 'PATCH',
+      body: JSON.stringify({ notificationIds: [notification.id] }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+      .then(response => response.json())
+      .then(() => {
+        setNotifications(prevNotifications =>
+          prevNotifications.map(n =>
+            n.id === notification.id ? { ...n, read: true } : n
+          )
+        );
+      })
+      .catch(err => console.error('Error marking notification as read:', err));
+  };
+
+  const unreadCount = notifications.filter(notification => !notification.read).length;
 
   return (
     <Card className="bg-gradient-to-r from-red-900 to-blue-900 text-white mb-8">
@@ -83,12 +143,10 @@ export default function Header() {
               <Button
                 variant="secondary"
                 className="bg-white text-blue-900 hover:bg-gray-100"
-                onClick={() => {
-                  setIsDropdownOpen(prev => !prev);
-                  handleViewNotifications();
-                }}
+                onClick={() => setIsDropdownOpen(prev => !prev)}
+                ref={buttonRef}
               >
-                <MessageCircle className="mr-2 h-4 w-4" />
+                <NotificationsIcon className="mr-2 h-4 w-4" /> {/* MUI Icon */}
                 Notifications
                 {unreadCount > 0 && (
                   <span className="absolute top-0 right-0 inline-flex items-center justify-center w-5 h-5 text-xs font-semibold text-white bg-red-500 rounded-full">
@@ -97,24 +155,35 @@ export default function Header() {
                 )}
               </Button>
               {isDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-lg border">
+                <div className="absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-lg border max-h-96 overflow-y-auto">
                   <div className="p-4">
                     <h3 className="text-xl font-semibold mb-2">Leave Notifications</h3>
                     {notifications.length > 0 ? (
                       notifications.map((notification, index) => (
-                        <div key={index} className="flex items-center space-x-2 mb-2">
-                          <MessageCircle className="text-blue-900" />
-                          <p className={`text-sm ${notification.isRead ? 'text-gray-500' : 'text-gray-700'}`}>
-                            {notification.message}
-                          </p>
-                        </div>
+                        !notification.read && (
+                          <div key={index} className="flex items-center space-x-2 mb-2">
+                            <NotificationsIcon className="text-blue-900" />
+                            <p className={`text-sm ${notification.read ? 'text-gray-500' : 'text-gray-700'}`}>
+                              {notification.message}
+                            </p>
+                            <CheckCircle
+                              className={`cursor-pointer text-green-500 ${notification.read ? 'opacity-50' : ''}`}
+                              onClick={() => handleTickNotification(notification)}
+                            />
+                          </div>
+                        )
                       ))
                     ) : (
                       <p className="text-sm text-gray-500">No new notifications</p>
                     )}
                   </div>
                   <div className="border-t p-2">
-                    <Link href="/leave" className="text-blue-600">View All</Link>
+                    <button
+                      onClick={handleMarkAllAsRead}
+                      className="text-blue-600 w-full text-left"
+                    >
+                      Mark All as Read
+                    </button>
                   </div>
                 </div>
               )}

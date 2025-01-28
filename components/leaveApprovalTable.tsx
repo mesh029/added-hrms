@@ -26,12 +26,16 @@ interface LeaveApprovalProps {
     userRole: string;
     leaveRequests: LeaveRequest[];
     title: string;
+    isBulk: boolean;
+
     setLeaveRequestAD: React.Dispatch<React.SetStateAction<boolean>>;}
 
-const LeaveTable: React.FC<LeaveApprovalProps> = ({ userId, userRole, title, leaveRequests, setLeaveRequestAD }) => {
+const LeaveTable: React.FC<LeaveApprovalProps> = ({ userId, userRole, title, leaveRequests, setLeaveRequestAD, isBulk }) => {
     const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
     const [expandedLeave, setExpandedLeave] = useState<number | null>(null);
     const [openApproveModal, setOpenApproveModal] = useState(false);
+    const [openBulkApproveModal, setOpenBulkApproveModal] = useState(false);
+
     const [openRejectModal, setOpenRejectModal] = useState(false);
     const [rejectReason, setRejectReason] = useState('');
   const [selectedLeaveId, setSelectedLeaveId] = useState<number | null>(null);
@@ -90,6 +94,10 @@ const { showToast } = useToast();
         setSelectedLeaveId(id);
         setOpenApproveModal(true);
       };
+
+      const handleBulkApproveClick= (leaves: {}) => {
+        setOpenBulkApproveModal(true);
+      };
     
       const handleApprove = async () => {
       
@@ -126,6 +134,52 @@ const { showToast } = useToast();
         setOpenApproveModal(false);
     
       };
+
+      const handleApproveBulk = async () => {
+        try {
+          const token = localStorage.getItem("jwtToken");
+          if (!token) {
+            console.error("Authentication token is missing.");
+            return;
+          }
+      
+          // Loop through each leave request and approve it
+          const approvalRequests = leaveRequests.map(async (leaveRequest) => {
+            const response = await fetch(
+              `/api/leave/${leaveRequest.id}/approve?approverId=${userId}`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+              }
+            );
+      
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(`Failed to approve leave ${leaveRequest.id}: ${errorData}`);
+            }
+          });
+      
+          // Execute all the approval requests concurrently
+          await Promise.all(approvalRequests);
+      
+          // Notify user of success
+          setOpenBulkApproveModal(false);
+
+          handleSuccessToast();
+          setLeaveRequestAD(true);
+          console.log("All leave requests approved successfully!");
+        } catch (error) {
+          console.error("Error approving leave requests:", error);
+        }
+      
+        // Close modal or reset state
+        setOpenApproveModal(false);
+      };
+      
+      
     
       const handleReject = async () => {
         if (!selectedLeaveId || !rejectReason) {
@@ -189,6 +243,11 @@ const { showToast } = useToast();
         <Card>
             <CardHeader>
                 <CardTitle>{title}</CardTitle>
+                {isBulk && (userRole === "HR" || userRole === "INCHARGE")  && leaveRequests.length > 0 &&(
+                                                            <>
+                                                                <Button onClick={() =>  handleBulkApproveClick(leaveRequests)}>Bulk Approve</Button>
+                                                            </>
+                                                        )}
             </CardHeader>
             <CardContent>
                 {Object.entries(groupedByMonth)
@@ -207,6 +266,7 @@ const { showToast } = useToast();
                             {/* Table for Expanded Month */}
                             {expandedMonth === month && (
                                 <Table className="mt-4">
+                                  
                                     <TableHeader>
                                         <TableRow>
                                         <TableHead></TableHead>
@@ -299,6 +359,61 @@ const { showToast } = useToast();
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Dialog
+  open={openBulkApproveModal}
+  onClose={() => setOpenBulkApproveModal(false)}
+  maxWidth="md" // Makes the dialog wider
+  fullWidth
+>
+  <DialogTitle
+    style={{
+      fontWeight: 'bold',
+      fontSize: '1.5rem',
+      textAlign: 'center',
+      color: '#003366', // You can change this to any color you want for the title
+    }}
+  >
+    Bulk Leave Approval
+  </DialogTitle>
+
+  <DialogContent style={{ padding: '2rem' }}>
+    <h1
+      style={{
+        color: '#8B1F25', // Red color for emphasis
+        fontWeight: 'bold',
+        fontSize: '1.25rem',
+        marginBottom: '1rem',
+      }}
+    >
+      You sure you wan't to approve all these leave requests??
+    </h1>
+
+    {/* Displaying leave requests */}
+    {leaveRequests.map((leaveRequest) => {
+      return (
+        <div key={leaveRequest.id} style={{ marginBottom: '1rem' }}>
+          <p style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>
+            <span style={{ color: '#003366' }}>{leaveRequest.user.name}</span>
+          </p>
+          <p>{leaveRequest.reason}</p>
+          {/* Add more details as necessary */}
+        </div>
+      );
+    })}
+  </DialogContent>
+
+  <DialogActions style={{ justifyContent: 'space-between' }}>
+    <Button onClick={() => setOpenBulkApproveModal(false)} color="default" variant="default">
+      Cancel
+    </Button>
+
+    <Button onClick={handleApproveBulk} color="default" variant="destructive" >
+      Approve
+    </Button>
+
+  </DialogActions>
+</Dialog>
         </Card>
     );
 };

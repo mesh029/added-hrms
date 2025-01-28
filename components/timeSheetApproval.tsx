@@ -233,12 +233,17 @@ const [timesheets, setTimesheets] = useState({
       ) : (
         <>
           {/* Timesheet Categories */}
-          <TimesheetTable
+          {userRole ==="admin" && (
+            <TimesheetTable
             title="Role-based Timesheets"
             timesheets={timesheets.roleBased}
             userId={userId}
             userRole= {userRole}
           />
+          )
+          
+          }
+          
           <TimesheetTable
   title={userRole !== "STAFF" ? "For Your Action" : "Pending..."}
   timesheets={timesheets.pending}

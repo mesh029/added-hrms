@@ -37,6 +37,7 @@ const LeaveApprovalComponent: React.FC<LeaveApprovalProps> = ({ userId, userRole
   const [loading, setLoading] = useState(true);
   const [openRejectModal, setOpenRejectModal] = useState(false);
   const [openApproveModal, setOpenApproveModal] = useState(false);
+  const [isBulk, setIsBulk] = useState(true);
   const [rejectReason, setRejectReason] = useState('');
   const [selectedLeaveRequestId, setSelectedLeaveRequestId] = useState<number | null>(null);
   const [leaveRequestAD, setLeaveRequestAD] = useState(false); // State lifted up from SubComponent
@@ -130,6 +131,7 @@ const LeaveApprovalComponent: React.FC<LeaveApprovalProps> = ({ userId, userRole
   userId={userId}
   userRole={userRole}
   setLeaveRequestAD={setLeaveRequestAD}
+  isBulk={isBulk}
 
 />
 {userRole !== "STAFF" && (
@@ -139,7 +141,7 @@ const LeaveApprovalComponent: React.FC<LeaveApprovalProps> = ({ userId, userRole
                 userId={userId}
                 userRole={userRole}
                 setLeaveRequestAD={setLeaveRequestAD}
-
+                isBulk={!isBulk}
               />
 
 )}
@@ -150,6 +152,7 @@ const LeaveApprovalComponent: React.FC<LeaveApprovalProps> = ({ userId, userRole
                 userId={userId}
                 userRole={userRole}
                 setLeaveRequestAD={setLeaveRequestAD}
+                isBulk={!isBulk}
 
               />
               <LeaveTable
@@ -158,6 +161,8 @@ const LeaveApprovalComponent: React.FC<LeaveApprovalProps> = ({ userId, userRole
                 userId={userId}
                 userRole={userRole}
                 setLeaveRequestAD={setLeaveRequestAD}
+                isBulk={!isBulk}
+
 
               />
             </>
