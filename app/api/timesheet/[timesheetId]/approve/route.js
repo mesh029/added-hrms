@@ -118,27 +118,34 @@ const approverId = searchParams.get('approverId'); // Get approverId from query 
       const approverLocation = timesheet.user.location;
       const validLocations = relatedLocations[approverLocation] || [];
 
-      nextApprover = await prisma.user.findFirst({
+      nextApprover = await prisma.user.findMany({
         where: {
           role: nextRole,
           location: { in: validLocations }, // Check if HR's location is in the valid locations list
         },
       });
+    
     } else if (approver.role === "HR") {
       nextRole = "PADM";
-      nextApprover = await prisma.user.findFirst({ where: { role: nextRole } });
+      nextApprover = await prisma.user.findMany({ where: { role: nextRole } });
     }
 
-    if (nextApprover) {
+    if (nextApprover && nextApprover.length > 0) {
+      // Extract approver IDs into an array
+      const approverIds = nextApprover.map((approver) => approver.id);
+    
+      // Create a single notification
       await prisma.notification.create({
         data: {
-          recipientId: nextApprover.id,
+          recipients: { connect: approverIds.map((id) => ({ id })) }, // Link all approvers
           message: `Timesheet from ${requestingUserName} (ID: ${timesheetId}) is awaiting your approval as ${nextRole}.`,
-          timesheetId: parseInt(timesheetId),
+          timesheetId: parseInt(timesheetId), // Use `timesheetId` directly
         },
       });
     }
-
+    
+    
+    
     if (allApproved) {
       const recipients = [...approvals.map(a => a.approverId), timesheet.user.id];
       for (const recipientId of recipients) {

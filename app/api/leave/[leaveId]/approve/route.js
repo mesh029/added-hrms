@@ -160,16 +160,20 @@ export async function POST(req, context) {
             });
         }
 
-        if (nextApprover) {
+        if (nextApprover && nextApprover.length > 0) {
+            // Extract approver IDs into an array
+            const approverIds = nextApprover.map((approver) => approver.id);
+          
+            // Create a single notification
             await prisma.notification.create({
-                data: {
-                    recipientId: nextApprover.id,
-                    message: `Leave request from ${requestingUserName} (ID: ${leaveId}) is awaiting your approval as ${nextRole}.`,
-                    leaveRequestId: parseInt(leaveId),
-                },
+              data: {
+                recipients: { connect: approverIds.map((id) => ({ id })) }, // Link all approvers
+                message: `Timesheet from ${requestingUserName} (ID: ${timesheetId}) is awaiting your approval as ${nextRole}.`,
+                timesheetId: parseInt(timesheetId), // Use `timesheetId` directly
+              },
             });
-        }
-
+          }
+          
         return NextResponse.json({ message: "Leave approved successfully." }, { status: 200 });
     } catch (error) {
         console.error("Error approving leave request:", error);

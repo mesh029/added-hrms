@@ -13,12 +13,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Calendar as CalendarIcon, Camera, Lock, LogOut, Mail, Phone, User } from 'lucide-react';
 
-
+import { LinearProgress } from "@mui/material"; // For percentage bars
+import { TrendingUp, TrendingDown, Users } from "lucide-react"; // For icons
 import TimesheetComponent from "@/components/timesheet";
 import LeaveManagementComponent from '@/components/leave';
 import Footer from '@/components/footer';
 import Header from '@/components/header';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@radix-ui/react-select';
+import {SelectContent, SelectItem, SelectPortal, SelectTrigger, SelectValue } from '@radix-ui/react-select';
 import { toast } from '@/hooks/use-toast';
 import { useRouter } from "next/router";
 import { EmployeeProvider, useEmployee } from '../context/EmployeeContext';
@@ -32,6 +33,7 @@ import LeaveApprovalComponent from '@/components/leaveApproval';
 import Toast from '@/components/ui/toasMui';
 import { useToast } from '../context/ToastContext';
 import TimesheetReportPage from '@/components/reportComponent';
+import { Select } from '@/components/ui/select';
 
 const employees = [
   { id: 1, name: 'Alice Johnson', role: 'Software Engineer', department: 'Engineering' },
@@ -46,14 +48,20 @@ interface User {
   department: string;
   location: string;
   reportsTo: string;
+  createdAt: Date;
   // Add any additional fields your user objects have
 }
-interface Employee {
+type Employee = {
   id: number;
   name: string;
   role: string;
   department: string;
-}
+  location: string;
+  reportsTo: string;
+  createdAt: string; // Add this line if `createdAt` is a string (e.g., ISO date)
+};
+
+
 
 interface DeleteConfirmationModalProps {
   user: User;
@@ -294,7 +302,158 @@ const filteredUsers2 = allUsers.filter((user) => {
   };
 
 
+ // Predefined Managers and Locations
+const predefinedManagers = ["Manager 1", "Manager 2", "Manager 3"];
+const predefinedLocations = ["Location 1", "Location 2", "Location 3"];
 
+const roleFields = {
+  STAFF: [
+    "Name", "Email", "Role", "Department", "Address", "Hire Date", "End Date", "Phone", 
+    "Facility", "Location", "Manager", "Leave Days", "Title"
+  ],
+  "STAFF-PROJECT": [
+    "Name", "Email", "Role", "Project", "Department", "Address", "Hire Date", 
+    "Phone", "Location", "Leave Days", "Manager"
+  ],
+  INCHARGE: ["Name", "Email", "Role", "Department", "Reports To", "Phone", "Facility", "Location"],
+  EMPLOYEE: ["Name", "Email", "Role", "Department", "Address", "Hire Date", "End Date", "Phone", "Location"]
+} as const;
+
+  // Type for role keys
+  type Role = keyof typeof roleFields;
+  
+  // Function to generate Excel template for a selected role
+  const generateExcelTemplate = (role: keyof typeof roleFields) => {
+    const fields = roleFields[role];
+  
+    if (!fields) {
+      alert("Invalid role selected");
+      return;
+    }
+  
+    // Create an empty row with all fields
+    const data = [fields.reduce((acc, field) => ({ ...acc, [field]: "" }), {})];
+  
+    // Create the worksheet
+    const worksheet = XLSX.utils.json_to_sheet(data);
+  
+    // Add instructions in the first row
+    XLSX.utils.sheet_add_aoa(worksheet, [
+      [
+        "Instructions: Please fill out the template below. Fields like Manager and Location have dropdowns. " +
+        "Ensure Hire Date and End Date are in the format YYYY-MM-DD."
+      ]
+    ], { origin: "A1" });
+  
+    // Define data validation for Managers and Locations
+    const rangeManagers = predefinedManagers.map((manager, i) => `A${i + 2}`).join(",");
+    const rangeLocations = predefinedLocations.map((location, i) => `B${i + 2}`).join(",");
+  
+    worksheet["!dataValidations"] = {
+      rules: [
+        {
+          type: "list",
+          allowBlank: false,
+          sqref: "L3:L100", // Assume Managers column starts at column L
+          formula1: `"${predefinedManagers.join(",")}"`
+        },
+        {
+          type: "list",
+          allowBlank: false,
+          sqref: "I3:I100", // Assume Locations column starts at column I
+          formula1: `"${predefinedLocations.join(",")}"`
+        }
+      ]
+    };
+  
+    // Add validation to required fields
+    const requiredColumns = ["Name", "Email", "Role", "Hire Date"];
+    requiredColumns.forEach((field, index) => {
+      worksheet["!dataValidations"].rules.push({
+        type: "custom",
+        allowBlank: false,
+        sqref: `${String.fromCharCode(65 + index)}3:${String.fromCharCode(65 + index)}100`, // Map columns A, B, C, etc.
+        formula1: `ISNUMBER(${String.fromCharCode(65 + index)}3)` // Example validation rule
+      });
+    });
+  
+    // Create the workbook and add the sheet
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, `${role} Template`);
+  
+    // Write to Excel file
+    XLSX.writeFile(workbook, `${role.toLowerCase()}_template.xlsx`);
+  };
+
+  // Component for Dropdown and Download Button
+  const ExcelDownloadButton = () => {
+    const [selectedRole, setSelectedRole] = useState<Role | ''>(''); // Type state as Role or empty string
+  
+    // Handle dropdown change
+    const handleRoleChange = (value: string) => {
+      setSelectedRole(value as Role); // Cast the string value to a Role type
+    };
+  
+    // Trigger download based on selected role
+    const handleDownload = () => {
+      if (!selectedRole) {
+        alert('Please select a role');
+        return;
+      }
+      generateExcelTemplate(selectedRole);
+    };
+  }
+
+  // Component for Dropdown and Download Button
+
+  // Handle dropdown change
+  const handleRoleChange = (value: string) => {
+    setSelectedRole(value as Role); // Cast the string value to a Role type
+  };
+
+  // Trigger download based on selected role
+  const handleDownload = () => {
+    if (!selectedRole) {
+      alert('Please select a role');
+      return;
+    }
+    generateExcelTemplate(selectedRole);
+  };
+
+
+
+  ///Uploading the excell....
+
+  const [file, setFile] = useState(null);
+  
+  const handleFileChange = (event: any) => {
+    setFile(event.target.files[0]);
+  };
+
+  const handleUpload = async () => {
+    if (!file) {
+      alert("Please select a file first.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await fetch("/api/users/bulkupload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error("Failed to upload file.");
+
+      const result = await response.json();
+      alert(`Upload successful! ${result.createdUsers.length} users added.`);
+    } catch (error) {
+      console.error(error);
+      alert("Error uploading file.");
+    }
+  }
 
 
 const handleAddNewUser = () => {
@@ -311,6 +470,8 @@ const handleUpdateUser = (updatedUser: User) => {
     description: `${updatedUser.name}'s information has been updated successfully.`,
   });
 };
+
+
 
 
   // Loading spinner component
@@ -439,6 +600,13 @@ const handleUpdateUser = (updatedUser: User) => {
                   <span className="font-bold">Location:</span>
                   <span>{userMain.location}</span>
                 </div>
+                {(userMain.role === "STAFF" || userMain.role === "INCHARGE") &&(
+                                  <div className="flex items-center space-x-2">
+                                  <span className="font-bold">Facility:</span>
+                                  <span>{userMain.facility}</span>
+                                </div>
+                )}
+
                 <div className="flex items-center space-x-2">
   <span className="font-bold">Hire Date:</span>
   <span>
@@ -629,12 +797,62 @@ const handleUpdateUser = (updatedUser: User) => {
 )}
               {isAdmin && (
                 <>
+
 <TabsContent value="add">
   <Card>
     <CardHeader>
       <CardTitle>Employee Directory</CardTitle>
-      <CardDescription>Manage and view all employee information</CardDescription>
+      <CardDescription>Manage and view all employee information.</CardDescription>
     </CardHeader>
+
+    {/* Stats Cards Section */}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      {/* Total Employees */}
+      <Card className="flex items-center justify-between p-4">
+        <div>
+          <p className="text-sm text-muted-foreground">Total Employees</p>
+          <h2 className="text-2xl font-bold">{allUsers.length}</h2>
+        </div>
+        <Users className="w-8 h-8 text-blue-500" />
+      </Card>
+
+      {/* Dynamic Role Cards */}
+      {["STAFF", "HR", "PADM", "INCHARGE", "STAFF PROJECT"].map((role) => {
+        const roleCount = allUsers.filter((user) => user.role === role).length;
+        const percentage = Math.round((roleCount / allUsers.length) * 100);
+        const trend = percentage > 20 ? "up" : "down"; // Example trend logic
+
+        return (
+          <Card
+            key={role}
+            className="flex items-center justify-between p-4"
+          >
+            <div>
+              <p className="text-sm text-muted-foreground">{role}</p>
+              <h2 className="text-2xl font-bold">{roleCount}</h2>
+              <div className="flex items-center space-x-2 mt-2">
+                {trend === "up" ? (
+                  <TrendingUp className="w-4 h-4 text-green-500" />
+                ) : (
+                  <TrendingDown className="w-4 h-4 text-red-500" />
+                )}
+                <span className="text-sm text-muted-foreground">
+                  {trend === "up" ? "+" : "-"}{Math.abs(percentage - 20)}%
+                </span>
+              </div>
+            </div>
+            <div className="w-24">
+              <LinearProgress
+                variant="determinate"
+                value={percentage}
+                color={trend === "up" ? "success" : "error"}
+              />
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+
     <CardContent>
       {/* Search and Add Section */}
       <div className="flex justify-between items-center mb-4 max-w-full">
@@ -653,85 +871,112 @@ const handleUpdateUser = (updatedUser: User) => {
 
       {/* Filters and Export Section */}
       <div className="flex flex-wrap justify-start space-x-4 mb-4 max-w-full overflow-x-auto">
-  <select
-    className="border rounded px-2 py-1 flex-shrink-0 w-full sm:w-auto"
-    value={selectedRole}
-    onChange={(e) => setSelectedRole(e.target.value)}
-  >
-    <option value="">Filter by Role</option>
-    {[...new Set(allUsers.map((u) => u.role))].map((role) => (
-      <option key={role} value={role}>
-        {role}
-      </option>
-    ))}
-  </select>
+        <select
+          className="border rounded px-2 py-1 flex-shrink-0 w-full sm:w-auto"
+          value={selectedRole}
+          onChange={(e) => setSelectedRole(e.target.value)}
+        >
+          <option value="">Filter by Role</option>
+          {[...new Set(allUsers.map((u) => u.role))].map((role) => (
+            <option key={role} value={role}>
+              {role}
+            </option>
+          ))}
+        </select>
 
-  <select
-    className="border rounded px-2 py-1 flex-shrink-0 w-full sm:w-auto"
-    value={selectedLocation}
-    onChange={(e) => setSelectedLocation(e.target.value)}
-  >
-    <option value="">Filter by Location</option>
-    {[...new Set(allUsers.map((u) => u.location))].map((location) => (
-      <option key={location} value={location}>
-        {location}
-      </option>
-    ))}
-  </select>
+        <select
+          className="border rounded px-2 py-1 flex-shrink-0 w-full sm:w-auto"
+          value={selectedLocation}
+          onChange={(e) => setSelectedLocation(e.target.value)}
+        >
+          <option value="">Filter by Location</option>
+          {[...new Set(allUsers.map((u) => u.location))].map((location) => (
+            <option key={location} value={location}>
+              {location}
+            </option>
+          ))}
+        </select>
 
-  <Button onClick={exportToExcel} className="w-full sm:w-auto">
-    Download Excel
-  </Button>
-</div>
+        <Button onClick={exportToExcel} className="w-full sm:w-auto">
+          Download Excel
+        </Button>
+
+
+
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      {/* Shadcn Button */}
+      <Button
+        onClick={handleDownload}
+        disabled={!selectedRole}
+        variant="outline" // You can also use "solid" or other variants
+        color="primary"
+        size="lg" // You can choose the size that suits your design
+      >
+        Download Excel Template
+      </Button>
+    </div>
+
+    <div>
+      <Input type="file" accept=".xlsx,.xls" onChange={handleFileChange} />
+      <Button onClick={handleUpload}>Upload Excel</Button>
+    </div>
+      </div>
 
       {/* Employee List */}
       <div className="space-y-4 max-h-[400px] overflow-y-auto max-w-full">
-  {filteredUsers2.map((employee) => (
-    <div
-      key={employee.id}
-      className="flex items-center justify-between p-4 border rounded-lg max-w-full flex-wrap"
-    >
-      <div className="flex items-center space-x-4 flex-shrink-0 w-full sm:w-auto">
-        <Avatar>
-          <AvatarFallback>
-            {employee?.name.split(' ').map((n) => n[0]).join('')}
-          </AvatarFallback>
-        </Avatar>
-        <div>
-          <p className="font-medium">{employee.name}</p>
-          <p className="text-sm text-muted-foreground">{employee.role}</p>
-        </div>
-      </div>
-      <div className="flex flex-wrap items-center sm:space-x-4 space-y-2 sm:space-y-0">
-        <Badge className="flex-shrink-0">{employee.department}</Badge>
-        <Button variant="outline" className="ml-2">
-          <Link href={`/user?id=${employee.id}`}>
-            View {employee.name}'s Profile
-          </Link>
-        </Button>
-        {userMain.role === "admin" && (
-          <Button
-            variant="destructive"
-            className="ml-2"
-            onClick={() => setDeleteUser(employee)}
-          >
-            Delete
-          </Button>
+        {filteredUsers2
+      .sort((a, b) => {
+    const dateA = new Date((a as any).createdAt); // Cast to `any` to access `createdAt`
+    const dateB = new Date((b as any).createdAt); // Cast to `any` to access `createdAt`
+    return dateB.getTime() - dateA.getTime(); // Compare dates
+  })          .map((employee) => (
+            <div
+              key={employee.id}
+              className="flex items-center justify-between p-4 border rounded-lg max-w-full flex-wrap"
+            >
+              <div className="flex items-center space-x-4 flex-shrink-0 w-full sm:w-auto">
+                <Avatar>
+                  <AvatarFallback>
+                    {employee?.name.split(" ").map((n) => n[0]).join("")}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-medium">{employee.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {employee.role}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center sm:space-x-4 space-y-2 sm:space-y-0">
+                <Badge className="flex-shrink-0">{employee.department}</Badge>
+                <Button variant="outline" className="ml-2">
+                  <Link href={`/user?id=${employee.id}`}>
+                    View {employee.name}'s Profile
+                  </Link>
+                </Button>
+                {userMain.role === "admin" && (
+                  <Button
+                    variant="destructive"
+                    className="ml-2"
+                    onClick={() => setDeleteUser(employee)}
+                  >
+                    Delete
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+
+        {/* Confirmation Modal */}
+        {deleteUser && (
+          <DeleteConfirmationModal
+            user={deleteUser} // Pass the entire user object
+            onCancel={() => setDeleteUser(null)}
+            onConfirm={() => handleDeleteUser(deleteUser.id)} // Directly call handleDeleteUser with user.id
+          />
         )}
       </div>
-    </div>
-  ))}
-
-  {/* Confirmation Modal */}
-  {deleteUser && (
-    <DeleteConfirmationModal
-      user={deleteUser} // Pass the entire user object
-      onCancel={() => setDeleteUser(null)}
-      onConfirm={() => handleDeleteUser(deleteUser.id)} // Directly call handleDeleteUser with user.id
-    />
-  )}
-</div>
-
     </CardContent>
   </Card>
 </TabsContent>
@@ -746,7 +991,7 @@ const handleUpdateUser = (updatedUser: User) => {
   </CardHeader>
   <CardContent>
   <div className="flex flex-wrap justify-between items-center mb-4">
-          <TimesheetReportPage/>
+          <TimesheetReportPage/>Select
 
 </div>
 

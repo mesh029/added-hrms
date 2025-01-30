@@ -7,7 +7,7 @@ import ApprovalFlowComponent from "./approvalFlow";
 import { Card, CardContent, CardHeader, Dialog, DialogActions, DialogContent, DialogTitle, TextField } from '@mui/material';
 import { CardTitle } from "./ui/card";
 
-
+import { useToast } from '../app/context/ToastContext'
 
 
 // Define Timesheet and Props types
@@ -27,10 +27,11 @@ interface TimesheetTableProps {
   timesheets: Timesheet[];
   userId: number;
   userRole: string;
+  isBulk: boolean;
 }
 
 
-const TimesheetTable: React.FC<TimesheetTableProps> = ({ title, timesheets, userId, userRole }) => {
+const TimesheetTable: React.FC<TimesheetTableProps> = ({ title, timesheets, userId, userRole, isBulk }) => {
   const [expandedTimesheet, setExpandedTimesheet] = useState<number | null>(null); // Track the expanded row
   const [rejectReason, setRejectReason] = useState('');
   const [selectedTimesheetId, setSelectedTimesheetId] = useState<number | null>(null);
@@ -38,7 +39,29 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({ title, timesheets, user
 
   const [openRejectModal, setOpenRejectModal] = useState(false);
   const [openApproveModal, setOpenApproveModal] = useState(false);
+    const [openBulkApproveModal, setOpenBulkApproveModal] = useState(false);
 
+
+    const { showToast } = useToast();
+    
+    
+      const handleSuccessToast = () => {
+        // Trigger success toast
+        showToast("Success! leave Request wass Approved.", "success");
+      };
+    
+      const handleRejectToast = () => {
+        // Trigger success toast
+        showToast("Leave Request wass Rejected.", "warning");
+      };
+    
+    
+      const handleErrorToast = () => {
+        // Trigger error toast
+        showToast("Error! Something went wrong.", "error");
+      };
+    
+    
   // Function to determine the indicator based on status
   const getStatusIndicator = (status: string) => {
     if (status === "Fully Approved") {
@@ -82,6 +105,10 @@ const groupedByMonth = timesheets.reduce((acc, timesheet) => {
     setOpenApproveModal(true);
   };
 
+  const handleBulkApproveClick= (leaves: {}) => {
+    setOpenBulkApproveModal(true);
+  };
+
   const handleApprove = async () => {
   
     try {
@@ -117,6 +144,52 @@ const groupedByMonth = timesheets.reduce((acc, timesheet) => {
     setOpenApproveModal(false);
 
   };
+
+  const handleApproveBulk = async () => {
+    try {
+      const token = localStorage.getItem("jwtToken");
+      if (!token) {
+        console.error("Authentication token is missing.");
+        return;
+      }
+  
+      // Loop through each selected timesheet and approve it
+      const approvalRequests = timesheets.map(async (timesheet) => {
+        const response = await fetch(
+          `/api/timesheet/${timesheet.id}/approve?approverId=${userId}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+  
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(`Failed to approve timesheet ${timesheet.id}: ${errorData.message || "Unknown error"}`);
+        }
+      });
+  
+      // Execute all the approval requests concurrently
+      await Promise.all(approvalRequests);
+  
+      // Notify user of success
+      setOpenBulkApproveModal(false);
+      handleSuccessToast(); // Show success toast
+      console.log("All timesheets approved successfully!");
+  
+      window.location.reload();
+    } catch (error) {
+      console.error("Error approving timesheets:", error);
+      handleErrorToast(); // Show error toast (if you have one)
+    }
+  
+    // Close modal or reset state
+    setOpenApproveModal(false);
+  };
+  
 
   const handleReject = async () => {
     if (!selectedTimesheetId || !rejectReason) {
@@ -191,6 +264,12 @@ const groupedByMonth = timesheets.reduce((acc, timesheet) => {
       <Card>
             <CardHeader>
                 <CardTitle>{title}</CardTitle>
+                 {isBulk && (userRole === "HR" || userRole === "INCHARGE")  && timesheets.length > 1 &&(
+                                                                            <>
+                                                                                <Button onClick={() =>  handleBulkApproveClick(timesheets)}>Bulk Approve</Button>
+                                                                            </>
+                                                                        )}
+                      
             </CardHeader>
             <CardContent>
                 {Object.entries(groupedByMonth)
@@ -311,6 +390,61 @@ const groupedByMonth = timesheets.reduce((acc, timesheet) => {
           <Button onClick={handleApprove} color="primary">
             Approve
           </Button>
+        </DialogActions>
+      </Dialog>
+
+            <Dialog
+        open={openBulkApproveModal}
+        onClose={() => setOpenBulkApproveModal(false)}
+        maxWidth="md" // Makes the dialog wider
+        fullWidth
+      >
+        <DialogTitle
+          style={{
+            fontWeight: 'bold',
+            fontSize: '1.5rem',
+            textAlign: 'center',
+            color: '#003366', // You can change this to any color you want for the title
+          }}
+        >
+          Bulk Leave Approval
+        </DialogTitle>
+      
+        <DialogContent style={{ padding: '2rem' }}>
+          <h1
+            style={{
+              color: '#8B1F25', // Red color for emphasis
+              fontWeight: 'bold',
+              fontSize: '1.25rem',
+              marginBottom: '1rem',
+            }}
+          >
+            You sure you wan't to approve all these leave requests??
+          </h1>
+      
+          {/* Displaying leave requests */}
+          {timesheets.map((timesheet) => {
+            return (
+              <div key={timesheet.id} style={{ marginBottom: '1rem' }}>
+                <p style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                  <span style={{ color: '#003366' }}>{timesheet.user.name}</span>
+                </p>
+                <p>{timesheet.month}</p>
+                {/* Add more details as necessary */}
+              </div>
+            );
+          })}
+        </DialogContent>
+      
+        <DialogActions style={{ justifyContent: 'space-between' }}>
+          <Button onClick={() => setOpenBulkApproveModal(false)} color="default" variant="default">
+            Cancel
+          </Button>
+      
+          <Button onClick={handleApproveBulk} color="default" variant="destructive" >
+            Approve
+          </Button>
+      
         </DialogActions>
       </Dialog>
     </div>

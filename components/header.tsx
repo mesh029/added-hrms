@@ -34,17 +34,28 @@ export default function Header() {
   useEffect(() => {
     if (parsedData?.id) {
       fetch(`/api/notifications/${parsedData.id}`)
-        .then(response => response.json())
+        .then(response => {
+          if (!response.ok) {
+            throw new Error("Failed to fetch notifications");
+          }
+          return response.json();
+        })
         .then(data => {
-          const notificationsWithReadStatus = data.map((notification: any) => ({
+          const notificationsWithReadStatus = (data || []).map((notification: any) => ({
             ...notification,
             read: notification.read ?? false,
           }));
           setNotifications(notificationsWithReadStatus);
         })
-        .catch(err => console.error('Error fetching notifications:', err));
+        .catch(err => {
+          console.error('Error fetching notifications:', err);
+          setNotifications([]); // Ensure notifications state is empty if an error occurs
+        });
+    } else {
+      setNotifications([]); // Handle cases where `parsedData?.id` is not available
     }
   }, [parsedData]);
+  
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -134,9 +145,11 @@ export default function Header() {
             <p className="text-lg opacity-90">Manage your work, time, and team efficiently</p>
           </div>
           <div className="flex flex-wrap justify-center md:justify-end gap-4">
+          <Link href={`/`}>
             <Button variant="secondary" className="bg-white text-blue-900 hover:bg-gray-100">
-              <Link href={`/`}>Log out</Link>
+              Log out
             </Button>
+            </Link>
 
             {/* Notifications Button with Dropdown */}
             <div className="relative" ref={dropdownRef}>

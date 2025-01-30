@@ -176,7 +176,7 @@ const { showToast } = useToast();
         }
       
         // Close modal or reset state
-        setOpenApproveModal(false);
+        setOpenBulkApproveModal(false);
       };
       
       
@@ -243,7 +243,7 @@ const { showToast } = useToast();
         <Card>
             <CardHeader>
                 <CardTitle>{title}</CardTitle>
-                {isBulk && (userRole === "HR" || userRole === "INCHARGE")  && leaveRequests.length > 0 &&(
+                {isBulk && (userRole === "HR" || userRole === "INCHARGE")  && leaveRequests.length > 1 &&(
                                                             <>
                                                                 <Button onClick={() =>  handleBulkApproveClick(leaveRequests)}>Bulk Approve</Button>
                                                             </>

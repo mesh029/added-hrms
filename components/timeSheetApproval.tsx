@@ -35,6 +35,7 @@ const TimesheetApprovalComponent: React.FC<TimesheetApprovalProps> = ({ userId, 
   const [expandedTimesheet, setExpandedTimesheet] = useState<number | null>(null);
   const [openRejectModal, setOpenRejectModal] = useState(false);
   const [openApproveModal, setOpenApproveModal] = useState(false);
+  const [isBulk, setIsBulk] = useState(true);
 
   const [rejectReason, setRejectReason] = useState('');
   const [selectedTimesheetId, setSelectedTimesheetId] = useState<number | null>(null);
@@ -239,6 +240,9 @@ const [timesheets, setTimesheets] = useState({
             timesheets={timesheets.roleBased}
             userId={userId}
             userRole= {userRole}
+            isBulk={!isBulk}
+
+
           />
           )
           
@@ -249,20 +253,28 @@ const [timesheets, setTimesheets] = useState({
   timesheets={timesheets.pending}
             userId={userId}
             userRole= {userRole}
+            isBulk={isBulk}
+
 
           />
+            {userRole !== "STAFF" && (
               <TimesheetTable
             title="Awaiting Next Approver"
             timesheets={timesheets.nextApprover}
             userId={userId}
             userRole= {userRole}
+            isBulk={!isBulk}
+
 
           />
+            )}
           <TimesheetTable
             title="Fully Approved"
             timesheets={timesheets.fullyApproved}
             userId={userId}
             userRole= {userRole}
+            isBulk={!isBulk}
+
 
           />
           <TimesheetTable
@@ -270,6 +282,8 @@ const [timesheets, setTimesheets] = useState({
             timesheets={timesheets.rejected}
             userId={userId}
             userRole= {userRole}
+            isBulk={!isBulk}
+
           />
         </>
       )}
