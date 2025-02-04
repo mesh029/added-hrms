@@ -53,6 +53,7 @@ export async function POST(req) {
         phone: user.phone ? user.phone.toString().replace(/\D/g, '') : null,
         title: user.title || null,
         location: user.location || null,
+        leaveDays: user.leaveDays ? parseInt(user.leaveDays, 10) : null,
       };
     });
 
